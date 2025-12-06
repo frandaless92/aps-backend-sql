@@ -2,11 +2,9 @@ const express = require("express");
 const router = express.Router();
 
 const {
-  obtenerAccesorios,
-  obtenerTejidos,
+  obtenerTodosLosProductos,
 } = require("../controllers/productosController.js");
 
-router.get("/accesorios", obtenerAccesorios);
-router.get("/tejidos", obtenerTejidos);
+router.get("/", obtenerTodosLosProductos);
 
 module.exports = router;
