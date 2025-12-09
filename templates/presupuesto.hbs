@@ -1,0 +1,93 @@
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      body { font-family: Arial, Helvetica, sans-serif; margin: 40px; font-size:
+      13px; color: #000; } .border-box { border: 2px solid #555; padding: 25px;
+      } .header { display: flex; justify-content: space-between; align-items:
+      flex-start; margin-bottom: 20px; } .logo { width: 180px; }
+      .presupuesto-info { text-align: right; font-size: 13px; line-height: 1.4;
+      } .presupuesto-info strong { font-size: 18px; } .section-title {
+      font-weight: bold; margin-top: 20px; margin-bottom: 6px; border-bottom:
+      1px solid #000; padding-bottom: 3px; font-size: 14px; } .client-box {
+      padding: 8px 0; font-size: 13px; } table { width: 100%; border-collapse:
+      collapse; margin-top: 12px; font-size: 13px; } th, td { border: 1px solid
+      #444; padding: 6px; } th { background: #e6e6e6; font-weight: bold;
+      text-align: left; } .total { margin-top: 20px; text-align: right;
+      font-size: 17px; font-weight: bold; } .footer { margin-top: 30px;
+      font-size: 12px; }
+    </style>
+  </head>
+
+  <body>
+    <div class="border-box">
+
+      <div class="header">
+        <img src="data:image/png;base64,{{logoBase64}}" class="logo" />
+
+        <div class="presupuesto-info">
+          <strong>PRESUPUESTO</strong><br />
+          Nº
+          {{presupuestoNumero}}<br />
+          Fecha:
+          {{fecha}}<br />
+          Válido hasta:
+          {{validez}}<br />
+          Vendedor:
+          {{vendedor}}<br />
+          Condición de pago:
+          {{condicionPago}}
+        </div>
+      </div>
+
+      <div class="section-title">Datos del Cliente</div>
+      <div class="client-box">
+        <strong>{{cliente.apellido}}, {{cliente.nombre}}</strong><br />
+        Empresa:
+        {{cliente.empresa}}<br />
+        Dirección:
+        {{cliente.direccion}}<br />
+        Teléfono:
+        {{cliente.telefono}}<br />
+        Email:
+        {{cliente.email}}
+      </div>
+
+      <div class="section-title">Detalle</div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 70px;">Cant.</th>
+            <th>Descripción</th>
+            <th style="width: 120px;">Precio Unit.</th>
+            <th style="width: 120px;">Subtotal</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {{#each items}}
+            <tr>
+              <td>{{cantidad}}</td>
+              <td>{{descripcion}}</td>
+              <td>$ {{precio_unitario}}</td>
+              <td>$ {{precio_total}}</td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+
+      <div class="total">
+        TOTAL: $
+        {{total}}
+      </div>
+
+      <div class="footer">
+        * Los precios pueden variar sin previo aviso.<br />
+        * Presupuesto válido sólo dentro del período establecido.<br />
+        * No incluye traslado ni instalación, salvo que se indique lo contrario.
+      </div>
+
+    </div>
+  </body>
+</html>

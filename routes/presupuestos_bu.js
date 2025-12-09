@@ -1,7 +1,9 @@
-// routes/presupuestos.js
 const express = require("express");
 const router = express.Router();
-const { generarPresupuesto } = require("../controllers/generarPresupuesto");
+
+const {
+  generarPresupuesto,
+} = require("../controllers/presupuestosController.js");
 
 router.post("/", generarPresupuesto);
 
