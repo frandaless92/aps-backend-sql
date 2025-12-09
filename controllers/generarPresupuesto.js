@@ -20,9 +20,7 @@ exports.generarPresupuesto = async (req, res) => {
       UPDATE VARIABLES SET PRESUPUESTO = ${nuevoNum}
     `);
 
-    // Número correlativo (si usás SQL, lo obtenés antes)
-    const presupuestoNumero = nuevoNum || "0000";
-
+    const presupuestoNumero = nuevoNum;
     const fecha = new Date().toLocaleDateString("es-AR");
     const validez = "30 días";
 
@@ -44,15 +42,17 @@ exports.generarPresupuesto = async (req, res) => {
 
     const pdf = await generarPDF(data);
 
+    // 🔥 HEADERS CORRECTOS
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
       `attachment; filename=presupuesto_${presupuestoNumero}.pdf`
     );
 
-    return res.send(pdf);
+    // ❗ ESTA ES LA LÍNEA QUE SOLUCIONA EL PDF DAÑADO
+    return res.end(pdf);
   } catch (error) {
     console.error("❌ Error al generar presupuesto:", error);
-    res.status(500).json({ error: "Error generando el presupuesto" });
+    return res.status(500).json({ error: "Error generando el presupuesto" });
   }
 };
