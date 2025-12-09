@@ -2,6 +2,8 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
+const checkApiKey = require("./middleware/apiKey.js");
+
 const clientesRoutes = require("./routes/clientes.js");
 const productosRoutes = require("./routes/productos.js");
 const presupuestosRoutes = require("./routes/presupuestos.js");
@@ -10,6 +12,8 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+app.use(checkApiKey);
 
 // Rutas
 app.use("/clientes", clientesRoutes);
