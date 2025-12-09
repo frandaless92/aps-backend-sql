@@ -3,19 +3,23 @@
     <meta charset="UTF-8" />
     <style>
       body { font-family: Arial, Helvetica, sans-serif; margin: 40px; font-size:
-      13px; color: #000; } .border-box { border: 2px solid #555; padding: 25px;
-      } .header { display: flex; justify-content: space-between; align-items:
-      flex-start; margin-bottom: 20px; } .logo { width: 180px; }
-      .presupuesto-info { text-align: right; font-size: 13px; line-height: 1.4;
-      } .presupuesto-info strong { font-size: 18px; } .section-title {
-      font-weight: bold; margin-top: 20px; margin-bottom: 6px; border-bottom:
-      1px solid #000; padding-bottom: 3px; font-size: 14px; } .client-box {
-      padding: 8px 0; font-size: 13px; } table { width: 100%; border-collapse:
-      collapse; margin-top: 12px; font-size: 13px; } th, td { border: 1px solid
-      #444; padding: 6px; } th { background: #e6e6e6; font-weight: bold;
-      text-align: left; } .total { margin-top: 20px; text-align: right;
-      font-size: 17px; font-weight: bold; } .footer { margin-top: 30px;
-      font-size: 12px; }
+      13px; color: #000; } .border-box { padding: 25px; border-radius: 12px; /*
+      Degrade desde arriba y desde abajo hacia el centro */ background:
+      linear-gradient(to bottom, #d8ecff 0%, #ffffff 45%, #ffffff 55%, #d8ecff
+      100%); /* Por si querés un borde suave */ border: 2px solid #bcd9f5; /*
+      Sombra sutil */ box-shadow: 0px 0px 12px rgba(0, 0, 0, 0.08); /* Para
+      asegurar que todo se vea prolijo */ box-sizing: border-box; } .header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 20px; } .logo { width: 180px; } .presupuesto-info {
+      text-align: right; font-size: 13px; line-height: 1.4; } .presupuesto-info
+      strong { font-size: 18px; } .section-title { font-weight: bold;
+      margin-top: 20px; margin-bottom: 6px; border-bottom: 1px solid #000;
+      padding-bottom: 3px; font-size: 14px; } .client-box { padding: 8px 0;
+      font-size: 13px; } table { width: 100%; border-collapse: collapse;
+      margin-top: 12px; font-size: 13px; } th, td { border: 1px solid #444;
+      padding: 6px; } th { background: #e6e6e6; font-weight: bold; text-align:
+      left; } .total { margin-top: 20px; text-align: right; font-size: 17px;
+      font-weight: bold; } .footer { margin-top: 30px; font-size: 12px; }
     </style>
   </head>
 
@@ -33,11 +37,26 @@
           {{fecha}}<br />
           Válido hasta:
           {{validez}}<br />
+          <br />
+          Trabajo:
+          {{trabajo}}<br />
           Vendedor:
           {{vendedor}}<br />
           Condición de pago:
           {{condicionPago}}
         </div>
+      </div>
+
+      <div class="client-box">
+        <strong>A.P.S. ALAMBRADOS PERIMETRALES DEL SUR </strong><br />
+        Fábrica de Tejidos Romboidales
+        <br />
+        Antonio Lamberti N° 970, Glew, Provincia de Buenos Aires
+        <br />
+        Teléfono: +54 11-6017-6013
+        <br />
+        De Claudia A. Baéz.
+        <br />
       </div>
 
       <div class="section-title">Datos del Cliente</div>
