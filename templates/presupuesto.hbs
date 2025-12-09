@@ -10,19 +10,22 @@
       Sombra sutil */ box-shadow: 0px 0px 12px rgba(0, 0, 0, 0.08); /* Para
       asegurar que todo se vea prolijo */ box-sizing: border-box; } .header {
       display: flex; justify-content: space-between; align-items: flex-start;
-      margin-bottom: 20px; } .logo { width: 180px; } .presupuesto-info {
-      text-align: right; font-size: 13px; line-height: 1.4; } .presupuesto-info
-      strong { font-size: 18px; } .section-title { font-weight: bold;
-      margin-top: 20px; margin-bottom: 6px; border-bottom: 1px solid #000;
-      padding-bottom: 3px; font-size: 14px; } .client-box { padding: 8px 0;
-      font-size: 13px; } table { width: 100%; border-collapse: collapse;
-      margin-top: 12px; font-size: 13px; } th, td { text-align: center
-      !important; border: 1px solid #444; padding: 6px; vertical-align: middle;}
-      th { background: #98dceb; font-weight: bold; text-align: left; } .total {
-      margin-top: 20px; text-align: right; font-size: 17px; font-weight: bold; }
-      .footer { margin-top: 30px; font-size: 12px; } .footer p { margin: 0 0
-      6px; text-align: justify; } .footer-cierre { text-align: center;
-      margin-top: 12px; font-size: 13px; }
+      margin-bottom: 20px; } .logo { width: 180px; } .cuadro-x { width: 60px;
+      height: 60px; border: 2px solid #000; display: flex; justify-content:
+      center; align-items: center; font-size: 26px; font-weight: bold; margin: 0
+      20px; user-select: none; } .presupuesto-info { text-align: right;
+      font-size: 13px; line-height: 1.4; } .presupuesto-info strong { font-size:
+      18px; } .section-title { font-weight: bold; margin-top: 20px;
+      margin-bottom: 6px; border-bottom: 1px solid #000; padding-bottom: 3px;
+      font-size: 14px; } .client-box { padding: 8px 0; font-size: 13px; } table
+      { width: 100%; border-collapse: collapse; margin-top: 12px; font-size:
+      13px; } th, td { text-align: center !important; border: 1px solid #444;
+      padding: 6px; vertical-align: middle;} th { background: #98dceb;
+      font-weight: bold; text-align: left; } .total { margin-top: 20px;
+      text-align: right; font-size: 17px; font-weight: bold; } .footer {
+      margin-top: 30px; font-size: 12px; } .footer p { margin: 0 0 6px;
+      text-align: justify; } .footer-cierre { text-align: center; margin-top:
+      12px; font-size: 13px; }
     </style>
   </head>
 
@@ -31,6 +34,10 @@
 
       <div class="header">
         <img src="data:image/png;base64,{{logoBase64}}" class="logo" />
+
+        <div class="cuadro-x">
+          X
+        </div>
 
         <div class="presupuesto-info">
           <strong>PRESUPUESTO</strong><br />
@@ -113,7 +120,10 @@
         días para su entrega. * Los precios pueden variar sin previo aviso.<br
         />
         * No incluye traslado ni instalación, salvo que se indique lo contrario.
-        <p class="footer-cierre"><strong>¡MUCHAS GRACIAS POR SU CONFIANZA!</strong></p>
+        <div class="footer-cierre">
+          <p><strong>¡MUCHAS GRACIAS POR SU CONFIANZA!</strong></p>
+        </div>
+
       </div>
 
     </div>
