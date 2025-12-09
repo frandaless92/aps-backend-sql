@@ -4,7 +4,8 @@ const generarPDF = require("../utils/pdfGenerator");
 
 exports.generarPresupuesto = async (req, res) => {
   try {
-    const { cliente, items, total, vendedor, condicionPago } = req.body;
+    const { cliente, items, total, vendedor, trabajo, condicionPago } =
+      req.body;
 
     const pool = await poolPromise;
 
@@ -33,6 +34,7 @@ exports.generarPresupuesto = async (req, res) => {
         precio_total: i.subtotal,
       })),
       total,
+      trabajo: trabajo || "No indicado",
       vendedor: vendedor || "No indicado",
       condicionPago: condicionPago || "Contado",
       presupuestoNumero,
