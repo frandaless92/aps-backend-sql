@@ -23,6 +23,13 @@ exports.generarPresupuesto = async (req, res) => {
 
     const presupuestoNumero = nuevoNum;
 
+    function formatoPrecio(num) {
+      return num
+        .toFixed(2) // fuerza 2 decimales
+        .replace(".", ",") // cambia decimal por coma
+        .replace(/\B(?=(\d{3})+(?!\d))/g, "."); // agrega puntos de miles
+    }
+
     function fechaArgentina() {
       const offset = -3; // Argentina UTC-3
       const now = new Date();
@@ -42,13 +49,13 @@ exports.generarPresupuesto = async (req, res) => {
       items: items.map((i) => ({
         cantidad: i.cantidad,
         descripcion: i.nombre || i.descripcion,
-        precio_unitario: i.precio,
-        precio_total: i.subtotal,
+        precio_unitario: formatoPrecio(i.precio),
+        precio_total: formatoPrecio(i.subtotal),
       })),
-      total,
+      total: formatoPrecio(total),
       trabajo: trabajo || "No indicado",
       vendedor: vendedor || "No indicado",
-      validez: validez || "30 días",
+      validez: validez || "A determinar",
       condicionPago: condicionPago || "Contado",
       presupuestoNumero,
       fecha,
