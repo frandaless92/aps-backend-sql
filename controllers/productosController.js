@@ -26,8 +26,8 @@ exports.actualizarStock = async (req, res) => {
 
     let tabla = null;
 
-    if (cat === "Accesorios") tabla = "ACCESORIOS";
-    else if (cat === "Tejidos") tabla = "TEJIDOS";
+    if (cat === "accesorios") tabla = "ACCESORIOS";
+    else if (cat === "tejidos") tabla = "TEJIDOS";
     else {
       return res.status(400).json({ error: "Categoría inválida" });
     }
