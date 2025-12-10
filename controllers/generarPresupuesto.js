@@ -22,7 +22,20 @@ exports.generarPresupuesto = async (req, res) => {
     `);
 
     const presupuestoNumero = nuevoNum;
-    const fecha = new Date().toLocaleDateString("es-AR");
+
+    function fechaArgentina() {
+      const offset = -3; // Argentina UTC-3
+      const now = new Date();
+      const local = new Date(now.getTime() + offset * 60 * 60 * 1000);
+
+      const d = String(local.getUTCDate()).padStart(2, "0");
+      const m = String(local.getUTCMonth() + 1).padStart(2, "0");
+      const y = local.getUTCFullYear();
+
+      return `${d}/${m}/${y}`;
+    }
+
+    const fecha = fechaArgentina();
 
     const data = {
       cliente,
