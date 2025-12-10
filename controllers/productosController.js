@@ -1,5 +1,16 @@
 const { poolPromise } = require("../config/db.js");
 
+function parsePrecio(valor) {
+  if (valor == null) return 0;
+
+  let limpio = valor.toString().trim();
+  limpio = limpio.replace(/\./g, ""); // elimina miles
+  limpio = limpio.replace(/,/g, "."); // coma → punto
+
+  const n = parseFloat(limpio);
+  return isNaN(n) ? 0 : n;
+}
+
 exports.obtenerTodosLosProductos = async (req, res) => {
   try {
     const pool = await poolPromise;
@@ -29,7 +40,14 @@ exports.obtenerTodosLosProductos = async (req, res) => {
     `);
 
     // Unimos resultados
-    const productos = [...accesorios.recordset, ...tejidos.recordset];
+    let productos = [...accesorios.recordset, ...tejidos.recordset];
+
+    // 🔥 Normalizar precios acá
+    productos = productos.map((p) => ({
+      ...p,
+      precio: parsePrecio(p.precio),
+      precio_lista: parsePrecio(p.precio_lista),
+    }));
 
     // Ordenar por categoría y luego por nombre
     productos.sort((a, b) => {
