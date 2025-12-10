@@ -17,7 +17,7 @@ exports.obtenerClientes = async (req, res) => {
         telefono,
         email
       FROM CLIENTES
-      ORDER BY nombre;
+      ORDER BY apellido;
     `);
 
     res.json(result.recordset);
