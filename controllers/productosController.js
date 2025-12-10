@@ -11,6 +11,7 @@ exports.obtenerTodosLosProductos = async (req, res) => {
         descripcion AS nombre,
         stock,
         precio,
+        precio_lista,
         'Accesorios' AS categoria
       FROM ACCESORIOS
     `);
@@ -22,6 +23,7 @@ exports.obtenerTodosLosProductos = async (req, res) => {
         descripcion + ' ' + cal + ' ' + pul + ' ' + alt + ' ' + long AS nombre,
         stock,
         precio,
+        precio_lista,
         'Tejidos' AS categoria
       FROM TEJIDOS
     `);
