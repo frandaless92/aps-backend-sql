@@ -11,6 +11,52 @@ function parsePrecio(valor) {
   return isNaN(n) ? 0 : n;
 }
 
+exports.actualizarStock = async (req, res) => {
+  try {
+    const { id, categoria, stock } = req.body;
+
+    if (!id || !categoria || stock === undefined) {
+      return res
+        .status(400)
+        .json({ error: "Faltan datos: id, categoria o stock" });
+    }
+
+    // Normalizar categoría
+    const cat = categoria.toLowerCase();
+
+    let tabla = null;
+
+    if (cat === "Accesorios") tabla = "ACCESORIOS";
+    else if (cat === "Tejidos") tabla = "TEJIDOS";
+    else {
+      return res.status(400).json({ error: "Categoría inválida" });
+    }
+
+    const pool = await poolPromise;
+
+    // Query directo gracias a la categoría
+    const result = await pool.request().input("stock", stock).input("id", id)
+      .query(`
+        UPDATE ${tabla}
+        SET stock = @stock
+        WHERE id_producto = @id
+      `);
+
+    if (result.rowsAffected[0] === 0) {
+      return res.status(404).json({ error: "Producto no encontrado" });
+    }
+
+    return res.json({
+      message: `Stock actualizado correctamente en ${tabla}`,
+      id,
+      stock,
+    });
+  } catch (err) {
+    console.error("❌ Error actualizando stock:", err);
+    return res.status(500).json({ error: "Error al actualizar stock" });
+  }
+};
+
 exports.obtenerTodosLosProductos = async (req, res) => {
   try {
     const pool = await poolPromise;
