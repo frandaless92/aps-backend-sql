@@ -2,6 +2,59 @@
 const generarPDF = require("../utils/pdfGenerator");
 const { poolPromise, sql } = require("../config/db");
 
+exports.eliminarPresupuesto = async (req, res) => {
+  const { presupuesto } = req.params;
+
+  if (!presupuesto) {
+    return res.status(400).json({
+      error: "Debe enviar el número de presupuesto.",
+    });
+  }
+
+  let transaction;
+
+  try {
+    const pool = await poolPromise;
+    transaction = new sql.Transaction(pool);
+
+    await transaction.begin();
+    const request = new sql.Request(transaction);
+
+    // 1) BORRAR CONTROLSTOCK
+    await request.input("PRESUPUESTO", sql.NVarChar, presupuesto).query(`
+        DELETE FROM CONTROLSTOCK
+        WHERE PRESUPUESTO = @PRESUPUESTO
+      `);
+
+    // 2) BORRAR ARCHIVOPRESUPUESTO
+    await request.input("PRESUPUESTO", sql.NVarChar, presupuesto).query(`
+        DELETE FROM ARCHIVOPRESUPUESTO
+        WHERE PRESUPUESTO = @PRESUPUESTO
+      `);
+
+    await transaction.commit();
+
+    return res.json({
+      ok: true,
+      msg: `Presupuesto ${presupuesto} eliminado correctamente.`,
+    });
+  } catch (err) {
+    console.error("Error eliminando presupuesto:", err);
+
+    if (transaction) {
+      try {
+        await transaction.rollback();
+      } catch (e) {
+        console.error("Error en rollback:", e);
+      }
+    }
+
+    return res.status(500).json({
+      error: "Error interno del servidor.",
+    });
+  }
+};
+
 exports.cambiarEstado = async (req, res) => {
   const { presupuesto, nuevoEstado, productos } = req.body;
 
