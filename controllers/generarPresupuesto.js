@@ -278,7 +278,7 @@ exports.generarPresupuesto = async (req, res) => {
       UPDATE VARIABLES SET PRESUPUESTO = ${nuevoNum}
     `);
 
-    const presupuestoNumero = nuevoNum.toSring();
+    const presupuestoNumero = nuevoNum.toString();
     // ======================================================
     // 2) FORMATEO DE DATOS PARA EL PDF
     // ======================================================
