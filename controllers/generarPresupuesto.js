@@ -2,6 +2,42 @@
 const { poolPromise } = require("../config/db.js");
 const generarPDF = require("../utils/pdfGenerator");
 
+exports.descargarPresupuesto = async (req, res) => {
+  try {
+    const presupuesto = req.params.presupuesto;
+
+    const pool = await poolPromise;
+
+    // Buscar archivo asociado
+    const result = await pool.request().input("pres", presupuesto).query(`
+        SELECT ARCHIVO, NOMBRE_DE_ARCHIVO
+        FROM ARCHIVOPRESUPUESTOS
+        WHERE PRESUPUESTO = @pres
+      `);
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ error: "Presupuesto no encontrado" });
+    }
+
+    const archivo = result.recordset[0].ARCHIVO;
+    const nombre =
+      result.recordset[0].NOMBRE_DE_ARCHIVO || `${presupuesto}.pdf`;
+
+    if (!archivo) {
+      return res.status(404).json({ error: "No hay archivo PDF cargado" });
+    }
+
+    // archivo es un Buffer → enviarlo como PDF
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${nombre}"`);
+
+    return res.send(archivo);
+  } catch (err) {
+    console.error("Error en descargar PDF:", err);
+    return res.status(500).json({ error: "Error interno" });
+  }
+};
+
 exports.gestionarPresupuestos = async (req, res) => {
   try {
     const pool = await poolPromise;
