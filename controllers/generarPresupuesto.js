@@ -10,7 +10,7 @@ exports.descargarPresupuesto = async (req, res) => {
 
     const result = await pool.request().input("pres", presupuesto).query(`
         SELECT ARCHIVO, NOMBRE_DE_ARCHIVO
-        FROM ARCHIVOPRESUPUESTOS
+        FROM ARCHIVOPRESUPUESTO
         WHERE PRESUPUESTO = @pres
       `);
 
