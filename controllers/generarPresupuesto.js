@@ -2,6 +2,80 @@
 const { poolPromise } = require("../config/db.js");
 const generarPDF = require("../utils/pdfGenerator");
 
+exports.cambiarEstado = async (req, res) => {
+  const { presupuesto, nuevoEstado, productos } = req.body;
+
+  if (!presupuesto || !nuevoEstado) {
+    return res.status(400).json({
+      error: "Faltan datos: presupuesto o nuevoEstado.",
+    });
+  }
+
+  try {
+    const pool = await poolPromise;
+    const transaction = new pool.transaction();
+
+    await transaction.begin();
+    const request = transaction.request();
+
+    // 1. ACTUALIZAR ESTADO DEL PRESUPUESTO
+    await request.input("PRESUPUESTO", presupuesto).input("ESTADO", nuevoEstado)
+      .query(`
+        UPDATE ARCHIVOPRESUPUESTO
+        SET ESTADO = @ESTADO
+        WHERE PRESUPUESTO = @PRESUPUESTO
+      `);
+
+    // 2. SI ES CONFIRMADO -> DESCONTAR STOCK
+    if (nuevoEstado === "CONFIRMADO") {
+      if (!Array.isArray(productos)) {
+        await transaction.rollback();
+        return res.status(400).json({
+          error: "Debes enviar los productos para confirmar el presupuesto.",
+        });
+      }
+
+      for (const prod of productos) {
+        const table =
+          prod.tipo === "ACCESORIOS"
+            ? "ACCESORIOS"
+            : prod.tipo === "TEJIDOS"
+            ? "TEJIDOS"
+            : null;
+
+        if (!table) {
+          await transaction.rollback();
+          return res.status(400).json({
+            error: `Tipo de producto no válido: ${prod.tipo}`,
+          });
+        }
+
+        const req2 = transaction.request();
+        req2.input("ID_PRODUCTO", prod.id).input("CANTIDAD", prod.cantidad);
+
+        await req2.query(`
+          UPDATE ${table}
+          SET stock = stock - @CANTIDAD
+          WHERE id_producto = @ID_PRODUCTO
+        `);
+      }
+    }
+
+    // 3. CONFIRMAR TRANSACCIÓN
+    await transaction.commit();
+
+    return res.json({
+      ok: true,
+      msg: `Presupuesto ${presupuesto} actualizado a ${nuevoEstado}`,
+    });
+  } catch (err) {
+    console.error("Error cambiando estado:", err);
+    return res.status(500).json({
+      error: "Error interno del servidor",
+    });
+  }
+};
+
 exports.descargarPresupuesto = async (req, res) => {
   try {
     const presupuesto = req.params.presupuesto;
