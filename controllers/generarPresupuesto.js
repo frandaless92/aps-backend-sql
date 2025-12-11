@@ -18,16 +18,17 @@ exports.eliminarPresupuesto = async (req, res) => {
     transaction = new sql.Transaction(pool);
 
     await transaction.begin();
-    const request = new sql.Request(transaction);
 
     // 1) BORRAR CONTROLSTOCK
-    await request.input("PRESUPUESTO", sql.NVarChar, presupuesto).query(`
+    const req1 = new sql.Request(transaction);
+    await req1.input("PRESUPUESTO", sql.NVarChar, presupuesto).query(`
         DELETE FROM CONTROLSTOCK
         WHERE PRESUPUESTO = @PRESUPUESTO
       `);
 
     // 2) BORRAR ARCHIVOPRESUPUESTO
-    await request.input("PRESUPUESTO", sql.NVarChar, presupuesto).query(`
+    const req2 = new sql.Request(transaction);
+    await req2.input("PRESUPUESTO", sql.NVarChar, presupuesto).query(`
         DELETE FROM ARCHIVOPRESUPUESTO
         WHERE PRESUPUESTO = @PRESUPUESTO
       `);
