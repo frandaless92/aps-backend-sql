@@ -331,7 +331,7 @@ exports.generarPresupuesto = async (req, res) => {
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
 
-    const nombreArchivo = `PRESUPUESTO-${presupuestoNumero}.pdf`;
+    const nombreArchivo = `PRESUPUESTO-${presupuestoNumero}`;
 
     // 4.1 Guardar PDF en ARCHIVOPRESUPUESTO
     const req1 = new sql.Request(transaction);
