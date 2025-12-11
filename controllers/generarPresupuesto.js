@@ -352,7 +352,7 @@ exports.generarPresupuesto = async (req, res) => {
       const req2 = new sql.Request(transaction);
 
       req2.input("PRESUPUESTO", sql.NVarChar, presupuestoNumero);
-      req2.input("TIPO", sql.NVarChar, item.categoria);
+      req2.input("TIPO", sql.NVarChar, item.categoria.toUpperCase());
       req2.input("ID_PRODUCTO", sql.NVarChar, item.id);
       req2.input("CANTIDAD", sql.Int, item.cantidad);
 
