@@ -2,6 +2,80 @@
 const { poolPromise } = require("../config/db.js");
 const generarPDF = require("../utils/pdfGenerator");
 
+exports.gestionarPresupuestos = async (req, res) => {
+  try {
+    const pool = await poolPromise;
+
+    // 1) TRAER TODOS LOS PRESUPUESTOS
+    const presupuestosRes = await pool.request().query(`
+      SELECT PRESUPUESTO, ESTADO
+      FROM ARCHIVOPRESUPUESTOS
+      ORDER BY PRESUPUESTO ASC
+    `);
+
+    const presupuestos = presupuestosRes.recordset;
+
+    const resultadoFinal = [];
+
+    // 2) RECORRER CADA PRESUPUESTO
+    for (const p of presupuestos) {
+      // 2.1) BUSCAR PRODUCTOS ASOCIADOS
+      const productosRes = await pool.request().input("pres", p.PRESUPUESTO)
+        .query(`
+          SELECT TIPO, ID_PRODUCTO, CANTIDAD
+          FROM CONTROLSTOCK
+          WHERE PRESUPUESTO = @pres
+        `);
+
+      const productos = [];
+
+      // 3) ARMAR ARRAY DE PRODUCTOS PARA ESTE PRESUPUESTO
+      for (const prod of productosRes.recordset) {
+        let descripcion = "";
+
+        if (prod.TIPO === "ACCESORIOS") {
+          const acc = await pool.request().input("id", prod.ID_PRODUCTO).query(`
+              SELECT descripcion AS descripcion
+              FROM ACCESORIOS
+              WHERE id_producto = @id
+            `);
+
+          descripcion = acc.recordset[0]?.descripcion || "Sin descripción";
+        }
+
+        if (prod.TIPO === "TEJIDOS") {
+          const tej = await pool.request().input("id", prod.ID_PRODUCTO).query(`
+              SELECT descripcion + ' ' + cal + ' ' + pul + ' ' + alt + ' ' + long AS descripcion
+              FROM TEJIDOS
+              WHERE id_producto = @id
+            `);
+
+          descripcion = tej.recordset[0]?.descripcion || "Sin descripción";
+        }
+
+        productos.push({
+          id: prod.ID_PRODUCTO,
+          descripcion,
+          cantidad: prod.CANTIDAD,
+          tipo: prod.TIPO,
+        });
+      }
+
+      // 4) PUSH DEL OBJETO COMPLETO
+      resultadoFinal.push({
+        PRESUPUESTO: p.PRESUPUESTO,
+        ESTADO: p.ESTADO,
+        PRODUCTOS: productos,
+      });
+    }
+
+    res.json(resultadoFinal);
+  } catch (err) {
+    console.error("Error en /presupuestos/gestion:", err);
+    res.status(500).json({ error: "Error interno en el servidor" });
+  }
+};
+
 exports.generarPresupuesto = async (req, res) => {
   try {
     const { cliente, items, total, vendedor, trabajo, condicionPago, validez } =
