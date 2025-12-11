@@ -9,7 +9,7 @@ exports.gestionarPresupuestos = async (req, res) => {
     // 1) TRAER TODOS LOS PRESUPUESTOS
     const presupuestosRes = await pool.request().query(`
       SELECT PRESUPUESTO, ESTADO
-      FROM ARCHIVOPRESUPUESTOS
+      FROM ARCHIVOPRESUPUESTO
       ORDER BY PRESUPUESTO ASC
     `);
 
