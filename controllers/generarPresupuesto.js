@@ -264,36 +264,40 @@ exports.generarPresupuesto = async (req, res) => {
 
     const pool = await poolPromise;
 
-    // 1) Obtener último número de presupuesto
+    // ======================================================
+    // 1) OBTENER NUEVO NÚMERO DE PRESUPUESTO
+    // ======================================================
     const queryVar = await pool.request().query(`
       SELECT PRESUPUESTO FROM VARIABLES
     `);
 
     const nuevoNum = queryVar.recordset[0].PRESUPUESTO + 1;
 
-    // 2) Guardar nuevo número
+    // Guardar nuevo número
     await pool.request().query(`
       UPDATE VARIABLES SET PRESUPUESTO = ${nuevoNum}
     `);
 
     const presupuestoNumero = nuevoNum;
 
+    // ======================================================
+    // 2) FORMATEO DE DATOS PARA EL PDF
+    // ======================================================
     function formatoPrecio(num) {
       return num
-        .toFixed(2) // fuerza 2 decimales
-        .replace(".", ",") // cambia decimal por coma
-        .replace(/\B(?=(\d{3})+(?!\d))/g, "."); // agrega puntos de miles
+        .toFixed(2)
+        .replace(".", ",")
+        .replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     }
 
     function fechaArgentina() {
-      const offset = -3; // Argentina UTC-3
+      const offset = -3;
       const now = new Date();
       const local = new Date(now.getTime() + offset * 60 * 60 * 1000);
 
       const d = String(local.getUTCDate()).padStart(2, "0");
       const m = String(local.getUTCMonth() + 1).padStart(2, "0");
       const y = local.getUTCFullYear();
-
       return `${d}/${m}/${y}`;
     }
 
@@ -316,16 +320,59 @@ exports.generarPresupuesto = async (req, res) => {
       fecha,
     };
 
+    // ======================================================
+    // 3) GENERAR PDF (TAL COMO TENÍAS)
+    // ======================================================
     const pdf = await generarPDF(data);
 
-    // 🔥 HEADERS CORRECTOS
+    // ======================================================
+    // 4) GUARDAR PDF + ITEMS EN BD
+    // ======================================================
+    const transaction = new sql.Transaction(pool);
+    await transaction.begin();
+
+    const nombreArchivo = `PRESUPUESTO-${presupuestoNumero}.pdf`;
+
+    // 4.1 Guardar PDF en ARCHIVOPRESUPUESTO
+    const req1 = new sql.Request(transaction);
+    req1.input("PRESUPUESTO", sql.NVarChar, presupuestoNumero);
+    req1.input("NOMBRE", sql.NVarChar, nombreArchivo);
+    req1.input("FORMATO", sql.NVarChar, ".pdf");
+    req1.input("ARCHIVO", sql.VarBinary(sql.MAX), pdf);
+    req1.input("ESTADO", sql.NVarChar, "A CONFIRMAR");
+
+    await req1.query(`
+      INSERT INTO ARCHIVOPRESUPUESTO
+      (PRESUPUESTO, NOMBRE_DE_ARCHIVO, FORMATO, ARCHIVO, ESTADO)
+      VALUES (@PRESUPUESTO, @NOMBRE, @FORMATO, @ARCHIVO, @ESTADO)
+    `);
+
+    // 4.2 Guardar items en CONTROLSTOCK
+    for (const item of items) {
+      const req2 = new sql.Request(transaction);
+
+      req2.input("PRESUPUESTO", sql.NVarChar, presupuestoNumero);
+      req2.input("TIPO", sql.NVarChar, item.categoria);
+      req2.input("ID_PRODUCTO", sql.NVarChar, item.id);
+      req2.input("CANTIDAD", sql.Int, item.cantidad);
+
+      await req2.query(`
+        INSERT INTO CONTROLSTOCK (PRESUPUESTO, TIPO, ID_PRODUCTO, CANTIDAD)
+        VALUES (@PRESUPUESTO, @TIPO, @ID_PRODUCTO, @CANTIDAD)
+      `);
+    }
+
+    await transaction.commit();
+
+    // ======================================================
+    // 5) RESPUESTA — DEVOLVER EL PDF COMO SIEMPRE
+    // ======================================================
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
       `attachment; filename=presupuesto_${presupuestoNumero}.pdf`
     );
 
-    // ❗ ESTA ES LA LÍNEA QUE SOLUCIONA EL PDF DAÑADO
     return res.end(pdf);
   } catch (error) {
     console.error("❌ Error al generar presupuesto:", error);
