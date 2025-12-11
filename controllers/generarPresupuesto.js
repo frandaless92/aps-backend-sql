@@ -8,7 +8,6 @@ exports.descargarPresupuesto = async (req, res) => {
 
     const pool = await poolPromise;
 
-    // Buscar archivo asociado
     const result = await pool.request().input("pres", presupuesto).query(`
         SELECT ARCHIVO, NOMBRE_DE_ARCHIVO
         FROM ARCHIVOPRESUPUESTOS
@@ -16,7 +15,7 @@ exports.descargarPresupuesto = async (req, res) => {
       `);
 
     if (result.recordset.length === 0) {
-      return res.status(404).json({ error: "Presupuesto no encontrado" });
+      return res.status(404).send("No encontrado");
     }
 
     const archivo = result.recordset[0].ARCHIVO;
@@ -24,17 +23,20 @@ exports.descargarPresupuesto = async (req, res) => {
       result.recordset[0].NOMBRE_DE_ARCHIVO || `${presupuesto}.pdf`;
 
     if (!archivo) {
-      return res.status(404).json({ error: "No hay archivo PDF cargado" });
+      return res.status(404).send("Sin archivo PDF");
     }
 
-    // archivo es un Buffer → enviarlo como PDF
+    // HEADERS ESENCIALES
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Expose-Headers", "*");
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${nombre}"`);
+    res.setHeader("Content-Length", archivo.length);
 
-    return res.send(archivo);
+    res.send(archivo);
   } catch (err) {
-    console.error("Error en descargar PDF:", err);
-    return res.status(500).json({ error: "Error interno" });
+    console.error("Error en descargar PDF", err);
+    res.status(500).send("Error interno");
   }
 };
 
