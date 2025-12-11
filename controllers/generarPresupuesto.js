@@ -1,6 +1,6 @@
 // controllers/generarPresupuesto.js
-const { poolPromise } = require("../config/db.js");
 const generarPDF = require("../utils/pdfGenerator");
+const { poolPromise, sql } = require("../config/db");
 
 exports.cambiarEstado = async (req, res) => {
   const { presupuesto, nuevoEstado, productos } = req.body;
@@ -11,16 +11,22 @@ exports.cambiarEstado = async (req, res) => {
     });
   }
 
+  let transaction;
+
   try {
     const pool = await poolPromise;
-    const transaction = new pool.transaction();
 
+    // Crear transacción correctamente
+    transaction = new sql.Transaction(pool);
     await transaction.begin();
-    const request = transaction.request();
+
+    // Request dentro de la transacción
+    const request = new sql.Request(transaction);
 
     // 1. ACTUALIZAR ESTADO DEL PRESUPUESTO
-    await request.input("PRESUPUESTO", presupuesto).input("ESTADO", nuevoEstado)
-      .query(`
+    await request
+      .input("PRESUPUESTO", sql.NVarChar, presupuesto)
+      .input("ESTADO", sql.NVarChar, nuevoEstado).query(`
         UPDATE ARCHIVOPRESUPUESTO
         SET ESTADO = @ESTADO
         WHERE PRESUPUESTO = @PRESUPUESTO
@@ -31,37 +37,37 @@ exports.cambiarEstado = async (req, res) => {
       if (!Array.isArray(productos)) {
         await transaction.rollback();
         return res.status(400).json({
-          error: "Debes enviar los productos para confirmar el presupuesto.",
+          error: "Debes enviar productos para confirmar el presupuesto.",
         });
       }
 
       for (const prod of productos) {
-        const table =
+        const tabla =
           prod.tipo === "ACCESORIOS"
             ? "ACCESORIOS"
             : prod.tipo === "TEJIDOS"
             ? "TEJIDOS"
             : null;
 
-        if (!table) {
+        if (!tabla) {
           await transaction.rollback();
           return res.status(400).json({
             error: `Tipo de producto no válido: ${prod.tipo}`,
           });
         }
 
-        const req2 = transaction.request();
-        req2.input("ID_PRODUCTO", prod.id).input("CANTIDAD", prod.cantidad);
-
-        await req2.query(`
-          UPDATE ${table}
-          SET stock = stock - @CANTIDAD
-          WHERE id_producto = @ID_PRODUCTO
-        `);
+        const req2 = new sql.Request(transaction);
+        await req2
+          .input("ID_PRODUCTO", sql.NVarChar, prod.id)
+          .input("CANTIDAD", sql.Int, prod.cantidad).query(`
+            UPDATE ${tabla}
+            SET stock = stock - @CANTIDAD
+            WHERE id_producto = @ID_PRODUCTO
+          `);
       }
     }
 
-    // 3. CONFIRMAR TRANSACCIÓN
+    // 3. FINALIZAR TRANSACCIÓN
     await transaction.commit();
 
     return res.json({
@@ -70,6 +76,15 @@ exports.cambiarEstado = async (req, res) => {
     });
   } catch (err) {
     console.error("Error cambiando estado:", err);
+
+    if (transaction) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackErr) {
+        console.error("Error realizando rollback:", rollbackErr);
+      }
+    }
+
     return res.status(500).json({
       error: "Error interno del servidor",
     });
