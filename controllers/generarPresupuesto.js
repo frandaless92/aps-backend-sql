@@ -330,6 +330,8 @@ exports.generarPresupuesto = async (req, res) => {
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
 
+    const pdfBuffer = Buffer.isBuffer(pdf) ? pdf : Buffer.from(pdf);
+
     const nombreArchivo = `PRESUPUESTO-${presupuestoNumero}`;
 
     // 4.1 Guardar PDF en ARCHIVOPRESUPUESTO
@@ -337,7 +339,7 @@ exports.generarPresupuesto = async (req, res) => {
     req1.input("PRESUPUESTO", sql.NVarChar, presupuestoNumero);
     req1.input("NOMBRE", sql.NVarChar, nombreArchivo);
     req1.input("FORMATO", sql.NVarChar, ".pdf");
-    req1.input("ARCHIVO", sql.VarBinary(sql.MAX), pdf);
+    req1.input("ARCHIVO", sql.VarBinary(sql.MAX), pdfBuffer);
     req1.input("ESTADO", sql.NVarChar, "A CONFIRMAR");
 
     await req1.query(`
