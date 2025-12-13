@@ -74,11 +74,10 @@ exports.cambiarEstado = async (req, res) => {
     transaction = new sql.Transaction(pool);
     await transaction.begin();
 
-    // Request dentro de la transacción
-    const request = new sql.Request(transaction);
-
     // 0. OBTENER ESTADO ACTUAL
-    const estadoActualResult = await request.input(
+    const reqEstado = new sql.Request(transaction);
+
+    const estadoActualResult = await reqEstado.input(
       "PRESUPUESTO",
       sql.NVarChar,
       presupuesto
@@ -98,13 +97,15 @@ exports.cambiarEstado = async (req, res) => {
     const estadoAnterior = estadoActualResult.recordset[0].ESTADO;
 
     // 1. ACTUALIZAR ESTADO DEL PRESUPUESTO
-    await request
+    const reqUpdate = new sql.Request(transaction);
+
+    await reqUpdate
       .input("PRESUPUESTO", sql.NVarChar, presupuesto)
       .input("ESTADO", sql.NVarChar, nuevoEstado).query(`
-        UPDATE ARCHIVOPRESUPUESTO
-        SET ESTADO = @ESTADO
-        WHERE PRESUPUESTO = @PRESUPUESTO
-      `);
+    UPDATE ARCHIVOPRESUPUESTO
+    SET ESTADO = @ESTADO
+    WHERE PRESUPUESTO = @PRESUPUESTO
+  `);
 
     // 2. SI ES CONFIRMADO -> DESCONTAR STOCK
     if (nuevoEstado === "PREPARAR") {
