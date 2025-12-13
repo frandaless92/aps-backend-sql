@@ -77,6 +77,26 @@ exports.cambiarEstado = async (req, res) => {
     // Request dentro de la transacción
     const request = new sql.Request(transaction);
 
+    // 0. OBTENER ESTADO ACTUAL
+    const estadoActualResult = await request.input(
+      "PRESUPUESTO",
+      sql.NVarChar,
+      presupuesto
+    ).query(`
+    SELECT ESTADO
+    FROM ARCHIVOPRESUPUESTO
+    WHERE PRESUPUESTO = @PRESUPUESTO
+  `);
+
+    if (estadoActualResult.recordset.length === 0) {
+      await transaction.rollback();
+      return res.status(404).json({
+        error: "Presupuesto no encontrado.",
+      });
+    }
+
+    const estadoAnterior = estadoActualResult.recordset[0].ESTADO;
+
     // 1. ACTUALIZAR ESTADO DEL PRESUPUESTO
     await request
       .input("PRESUPUESTO", sql.NVarChar, presupuesto)
@@ -87,7 +107,7 @@ exports.cambiarEstado = async (req, res) => {
       `);
 
     // 2. SI ES CONFIRMADO -> DESCONTAR STOCK
-    if (nuevoEstado === "CONFIRMADO") {
+    if (nuevoEstado === "PREPARAR") {
       if (!Array.isArray(productos)) {
         await transaction.rollback();
         return res.status(400).json({
@@ -96,6 +116,9 @@ exports.cambiarEstado = async (req, res) => {
       }
 
       for (const prod of productos) {
+        // 🟢 Mano de obra no toca stock
+        if (prod.tipo === "SERVICIO") continue;
+
         const tabla =
           prod.tipo === "ACCESORIOS"
             ? "ACCESORIOS"
@@ -118,6 +141,44 @@ exports.cambiarEstado = async (req, res) => {
             SET stock = stock - @CANTIDAD
             WHERE id_producto = @ID_PRODUCTO
           `);
+      }
+    }
+
+    // 2.b SI SE RECHAZA Y ANTES ESTABA EN PREPARAR -> DEVOLVER STOCK
+    if (nuevoEstado === "RECHAZADO" && estadoAnterior === "PREPARAR") {
+      if (!Array.isArray(productos)) {
+        await transaction.rollback();
+        return res.status(400).json({
+          error: "Debes enviar productos para revertir stock.",
+        });
+      }
+
+      for (const prod of productos) {
+        // 🟢 Mano de obra no toca stock
+        if (prod.tipo === "SERVICIO") continue;
+
+        const tabla =
+          prod.tipo === "ACCESORIOS"
+            ? "ACCESORIOS"
+            : prod.tipo === "TEJIDOS"
+            ? "TEJIDOS"
+            : null;
+
+        if (!tabla) {
+          await transaction.rollback();
+          return res.status(400).json({
+            error: `Tipo de producto no válido: ${prod.tipo}`,
+          });
+        }
+
+        const req2 = new sql.Request(transaction);
+        await req2
+          .input("ID_PRODUCTO", sql.NVarChar, prod.id)
+          .input("CANTIDAD", sql.Int, prod.cantidad).query(`
+        UPDATE ${tabla}
+        SET stock = stock + @CANTIDAD
+        WHERE id_producto = @ID_PRODUCTO
+      `);
       }
     }
 
@@ -210,6 +271,18 @@ exports.gestionarPresupuestos = async (req, res) => {
 
       const productos = [];
 
+      // 2.2) BUSCAR REFERENCIA DE PAGO (SI EXISTE)
+      const refRes = await pool.request().input("pres", p.PRESUPUESTO).query(`
+            SELECT REFERENCIA
+            FROM REFERENCIAPAGO
+            WHERE PRESUPUESTO = @pres
+          `);
+
+      const referenciaPago =
+        refRes.recordset.length > 0
+          ? refRes.recordset[0].REFERENCIA
+          : "No posee";
+
       // 3) ARMAR ARRAY DE PRODUCTOS PARA ESTE PRESUPUESTO
       for (const prod of productosRes.recordset) {
         let descripcion = "";
@@ -246,6 +319,7 @@ exports.gestionarPresupuestos = async (req, res) => {
       resultadoFinal.push({
         PRESUPUESTO: p.PRESUPUESTO,
         ESTADO: p.ESTADO,
+        REFERENCIA_PAGO: referenciaPago,
         PRODUCTOS: productos,
       });
     }
@@ -259,8 +333,16 @@ exports.gestionarPresupuestos = async (req, res) => {
 
 exports.generarPresupuesto = async (req, res) => {
   try {
-    const { cliente, items, total, vendedor, trabajo, condicionPago, validez } =
-      req.body;
+    const {
+      cliente,
+      items,
+      total,
+      vendedor,
+      trabajo,
+      condicionPago,
+      referenciaPago,
+      validez,
+    } = req.body;
 
     const pool = await poolPromise;
 
@@ -347,6 +429,19 @@ exports.generarPresupuesto = async (req, res) => {
       (PRESUPUESTO, NOMBRE_DE_ARCHIVO, FORMATO, ARCHIVO, ESTADO)
       VALUES (@PRESUPUESTO, @NOMBRE, @FORMATO, @ARCHIVO, @ESTADO)
     `);
+
+    // 4.1.b Guardar referencia de pago
+    if (referenciaPago) {
+      const reqRef = new sql.Request(transaction);
+
+      reqRef.input("PRESUPUESTO", sql.NVarChar, presupuestoNumero);
+      reqRef.input("REFERENCIA", sql.NVarChar, referenciaPago);
+
+      await reqRef.query(`
+    INSERT INTO REFERENCIAPAGO (PRESUPUESTO, REFERENCIA)
+    VALUES (@PRESUPUESTO, @REFERENCIA)
+  `);
+    }
 
     // 4.2 Guardar items en CONTROLSTOCK
     for (const item of items) {
