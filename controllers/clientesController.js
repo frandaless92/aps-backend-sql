@@ -42,9 +42,9 @@ exports.crearCliente = async (req, res) => {
     } = req.body;
 
     // Validación mínima
-    if (!apellido || !nombre) {
+    if (!apellido || !telefono) {
       return res.status(400).json({
-        error: "Apellido y nombre son obligatorios",
+        error: "Apellido y teléfono son obligatorios",
       });
     }
 

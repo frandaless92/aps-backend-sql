@@ -467,8 +467,10 @@ exports.generarPresupuesto = async (req, res) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=presupuesto_${presupuestoNumero}.pdf`
+      `attachment; filename=PRESUPUESTO ${presupuestoNumero}.pdf`
     );
+    // 👇 clave
+    res.setHeader("X-Presupuesto-Numero", presupuestoNumero);
 
     return res.end(pdf);
   } catch (error) {
