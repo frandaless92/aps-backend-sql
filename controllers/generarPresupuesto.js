@@ -80,7 +80,7 @@ exports.cambiarEstado = async (req, res) => {
     const estadoActualResult = await reqEstado.input(
       "PRESUPUESTO",
       sql.NVarChar,
-      presupuesto
+      presupuesto,
     ).query(`
     SELECT ESTADO
     FROM ARCHIVOPRESUPUESTO
@@ -124,8 +124,8 @@ exports.cambiarEstado = async (req, res) => {
           prod.tipo === "ACCESORIOS"
             ? "ACCESORIOS"
             : prod.tipo === "TEJIDOS"
-            ? "TEJIDOS"
-            : null;
+              ? "TEJIDOS"
+              : null;
 
         if (!tabla) {
           await transaction.rollback();
@@ -162,8 +162,8 @@ exports.cambiarEstado = async (req, res) => {
           prod.tipo === "ACCESORIOS"
             ? "ACCESORIOS"
             : prod.tipo === "TEJIDOS"
-            ? "TEJIDOS"
-            : null;
+              ? "TEJIDOS"
+              : null;
 
         if (!tabla) {
           await transaction.rollback();
@@ -354,11 +354,12 @@ exports.generarPresupuesto = async (req, res) => {
       SELECT PRESUPUESTO FROM VARIABLES
     `);
 
-    const nuevoNum = queryVar.recordset[0].PRESUPUESTO + 1;
+    const nuevoNum = queryVar.recordset[0].PRESUPUESTO;
+    const nuevoValorPresupuesto = queryVar.recordset[0].PRESUPUESTO + 1;
 
     // Guardar nuevo número
     await pool.request().query(`
-      UPDATE VARIABLES SET PRESUPUESTO = ${nuevoNum}
+      UPDATE VARIABLES SET PRESUPUESTO = ${nuevoValorPresupuesto}
     `);
 
     const presupuestoNumero = nuevoNum.toString();
@@ -451,7 +452,7 @@ exports.generarPresupuesto = async (req, res) => {
       req2.input("PRESUPUESTO", sql.NVarChar, presupuestoNumero);
       req2.input("TIPO", sql.NVarChar, item.categoria.toUpperCase());
       req2.input("ID_PRODUCTO", sql.NVarChar, String(item.id));
-      req2.input("CANTIDAD", sql.Int, item.cantidad);
+      req2.input("CANTIDAD", sql.Numeric, item.cantidad);
 
       await req2.query(`
         INSERT INTO CONTROLSTOCK (PRESUPUESTO, TIPO, ID_PRODUCTO, CANTIDAD)
@@ -467,7 +468,7 @@ exports.generarPresupuesto = async (req, res) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=PRESUPUESTO ${presupuestoNumero}.pdf`
+      `attachment; filename=PRESUPUESTO ${presupuestoNumero}.pdf`,
     );
     // 👇 clave
     res.setHeader("X-Presupuesto-Numero", presupuestoNumero);
