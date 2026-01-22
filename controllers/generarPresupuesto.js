@@ -452,7 +452,7 @@ exports.generarPresupuesto = async (req, res) => {
       req2.input("PRESUPUESTO", sql.NVarChar, presupuestoNumero);
       req2.input("TIPO", sql.NVarChar, item.categoria.toUpperCase());
       req2.input("ID_PRODUCTO", sql.NVarChar, String(item.id));
-      req2.input("CANTIDAD", sql.Numeric, item.cantidad);
+      req2.input("CANTIDAD", sql.Numeric(10, 2), item.cantidad);
 
       await req2.query(`
         INSERT INTO CONTROLSTOCK (PRESUPUESTO, TIPO, ID_PRODUCTO, CANTIDAD)
