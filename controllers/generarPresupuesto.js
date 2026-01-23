@@ -137,7 +137,7 @@ exports.cambiarEstado = async (req, res) => {
         const req2 = new sql.Request(transaction);
         await req2
           .input("ID_PRODUCTO", sql.NVarChar, prod.id)
-          .input("CANTIDAD", sql.Int, prod.cantidad).query(`
+          .input("CANTIDAD", sql.Numeric(10, 2), prod.cantidad).query(`
             UPDATE ${tabla}
             SET stock = stock - @CANTIDAD
             WHERE id_producto = @ID_PRODUCTO
@@ -175,7 +175,7 @@ exports.cambiarEstado = async (req, res) => {
         const req2 = new sql.Request(transaction);
         await req2
           .input("ID_PRODUCTO", sql.NVarChar, prod.id)
-          .input("CANTIDAD", sql.Int, prod.cantidad).query(`
+          .input("CANTIDAD", sql.Numeric(10, 2), prod.cantidad).query(`
         UPDATE ${tabla}
         SET stock = stock + @CANTIDAD
         WHERE id_producto = @ID_PRODUCTO
