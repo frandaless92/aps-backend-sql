@@ -43,7 +43,7 @@ module.exports = async function generarPDF(data) {
     const pdfBuffer = await page.pdf({
       format: "A4",
       printBackground: true,
-      margin: { top: "10px", right: "10px", bottom: "10px", left: "10px" },
+      margin: { top: "0px", right: "0px", bottom: "0px", left: "0px" }, // Márgenes a cero
     });
 
     await browser.close();

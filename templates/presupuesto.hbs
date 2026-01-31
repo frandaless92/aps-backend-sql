@@ -2,31 +2,125 @@
   <head>
     <meta charset="UTF-8" />
     <style>
-      body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding:
-      20px; font-size: 13px; color: #000; height: 100%;} html {height: 100%;}
-      .border-box { min-height: 100vh; /* ocupa toda la hoja visible */ display:
-      flex; flex-direction: column; justify-content: flex-start; padding: 25px;
-      border-radius: 12px; background: linear-gradient(to bottom, #d8ecff 0%,
-      #ffffff 45%, #ffffff 55%, #d8ecff 100%); border: 2px solid #bcd9f5;
-      box-shadow: 0px 0px 12px rgba(0, 0, 0, 0.08); box-sizing: border-box; }
-      .header { display: flex; justify-content: space-between; align-items:
-      flex-start; margin-bottom: 20px; } .logo { width: 180px; } .cuadro-x {
-      width: 60px; height: 60px; border: 2px solid #000; display: flex;
-      justify-content: center; align-items: center; font-size: 26px;
-      font-weight: bold; margin: 0 20px; user-select: none; } .presupuesto-info
-      { text-align: right; font-size: 13px; line-height: 1.4; }
-      .presupuesto-info strong { font-size: 18px; } .section-title {
-      font-weight: bold; margin-top: 20px; margin-bottom: 6px; border-bottom:
-      1px solid #000; padding-bottom: 3px; font-size: 14px; } .client-box {
-      padding: 8px 0; font-size: 13px; } table { width: 100%; border-collapse:
-      collapse; margin-top: 12px; font-size: 13px; } th, td { text-align: center
-      !important; border: 1px solid #444; padding: 6px; vertical-align: middle;}
-      th { background: #98dceb; font-weight: bold; text-align: left; } .total {
-      margin-top: 20px; text-align: right; font-size: 17px; font-weight: bold; }
-      .footer { margin-top: auto; font-size: 12px; } .footer p { margin: 0 0
-      6px; text-align: justify; } .footer-cierre { text-align: center;
-      margin-top: 12px; font-size: 13px; } .footer-cierre p { text-align: center
-      !important; margin: 0; }
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        margin: 0;
+        padding: 0;
+        font-size: 13px;
+        color: #000;
+        height: 100%;
+        background-color: #fff;
+      }
+      html {
+        height: 100%;
+      }
+      .border-box {
+        min-height: 280mm; /* ocupa toda la hoja visible */
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        padding: 15mm;
+        border-radius: 12px;
+        background: linear-gradient(
+          to bottom,
+          #d8ecff 0%,
+          #ffffff 45%,
+          #ffffff 55%,
+          #d8ecff 100%
+        );
+        border: 2px solid #bcd9f5;
+        box-shadow: 0px 0px 12px rgba(0, 0, 0, 0.08);
+        box-sizing: border-box;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 20px;
+      }
+      .logo {
+        width: 180px;
+      }
+      .cuadro-x {
+        width: 60px;
+        height: 60px;
+        border: 2px solid #000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 26px;
+        font-weight: bold;
+        margin: 0 20px;
+        user-select: none;
+      }
+      .presupuesto-info {
+        text-align: right;
+        font-size: 13px;
+        line-height: 1.4;
+      }
+      .presupuesto-info strong {
+        font-size: 18px;
+      }
+      .section-title {
+        font-weight: bold;
+        margin-top: 20px;
+        margin-bottom: 6px;
+        border-bottom: 1px solid #000;
+        padding-bottom: 3px;
+        font-size: 14px;
+      }
+      .client-box {
+        padding: 8px 0;
+        font-size: 13px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+        font-size: 13px;
+      }
+      th,
+      td {
+        text-align: center !important;
+        border: 1px solid #444;
+        padding: 6px;
+        vertical-align: middle;
+      }
+      th {
+        background: #98dceb;
+        font-weight: bold;
+        text-align: left;
+      }
+
+      tr {
+        page-break-inside: avoid;
+      }
+      .total {
+        margin-top: 20px;
+        text-align: right;
+        font-size: 17px;
+        font-weight: bold;
+      }
+      .footer {
+        margin-top: auto;
+        padding-top: 20px;
+        page-break-inside: avoid;
+        break-inside: avoid;
+        font-size: 12px;
+      }
+      .footer p {
+        margin: 0 0 6px;
+        text-align: justify;
+      }
+      .footer-cierre {
+        text-align: center;
+        margin-top: 12px;
+        font-size: 13px;
+      }
+      .footer-cierre p {
+        text-align: center !important;
+        margin: 0;
+      }
     </style>
   </head>
 
