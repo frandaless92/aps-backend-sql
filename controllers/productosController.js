@@ -114,3 +114,133 @@ exports.obtenerTodosLosProductos = async (req, res) => {
     res.status(500).json({ error: "Error obteniendo productos" });
   }
 };
+
+exports.crearProducto = async (req, res) => {
+  try {
+    const {
+      tipo,
+      descripcion,
+      stock,
+      precio,
+      precio_lista,
+      calibre,
+      pulgada,
+      altura,
+      longitud,
+    } = req.body;
+    const pool = await poolPromise;
+
+    if (tipo === "ACCESORIOS") {
+      await pool
+        .request()
+        .input("descripcion", descripcion)
+        .input("stock", stock)
+        .input("precio", precio)
+        .input("precio_lista", precio_lista).query(`
+          INSERT INTO ACCESORIOS (descripcion, stock, precio, precio_lista)
+          VALUES (@descripcion, @stock, @precio, @precio_lista)
+        `);
+    }
+
+    if (tipo === "TEJIDOS") {
+      await pool
+        .request()
+        .input("descripcion", descripcion)
+        .input("cal", calibre)
+        .input("pul", pulgada)
+        .input("alt", altura)
+        .input("long", longitud)
+        .input("stock", stock)
+        .input("precio", precio)
+        .input("precio_lista", precio_lista).query(`
+          INSERT INTO TEJIDOS (descripcion, cal, pul, alt, long, stock, precio, precio_lista)
+          VALUES (@descripcion, @cal, @pul, @alt, @long, @stock, @precio, @precio_lista)
+        `);
+    }
+
+    res.json({ message: "Producto creado correctamente" });
+  } catch (err) {
+    console.error("❌ Crear producto:", err);
+    res.status(500).json({ error: "Error creando producto" });
+  }
+};
+
+exports.actualizarProducto = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      tipo,
+      descripcion,
+      stock,
+      precio,
+      precio_lista,
+      calibre,
+      pulgada,
+      altura,
+      longitud,
+    } = req.body;
+    const pool = await poolPromise;
+
+    if (tipo === "ACCESORIOS") {
+      await pool
+        .request()
+        .input("id", id)
+        .input("descripcion", descripcion)
+        .input("stock", stock)
+        .input("precio", precio)
+        .input("precio_lista", precio_lista).query(`
+          UPDATE ACCESORIOS
+          SET descripcion=@descripcion, stock=@stock, precio=@precio, precio_lista=@precio_lista
+          WHERE id_producto=@id
+        `);
+    }
+
+    if (tipo === "TEJIDOS") {
+      await pool
+        .request()
+        .input("id", id)
+        .input("descripcion", descripcion)
+        .input("cal", calibre)
+        .input("pul", pulgada)
+        .input("alt", altura)
+        .input("long", longitud)
+        .input("stock", stock)
+        .input("precio", precio)
+        .input("precio_lista", precio_lista).query(`
+          UPDATE TEJIDOS
+          SET descripcion=@descripcion, cal=@cal, pul=@pul, alt=@alt, long=@long,
+              stock=@stock, precio=@precio, precio_lista=@precio_lista
+          WHERE id_producto=@id
+        `);
+    }
+
+    res.json({ message: "Producto actualizado" });
+  } catch (err) {
+    console.error("❌ Actualizar producto:", err);
+    res.status(500).json({ error: "Error actualizando producto" });
+  }
+};
+
+exports.eliminarProducto = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tipo } = req.query;
+    const pool = await poolPromise;
+
+    const tabla = tipo === "TEJIDOS" ? "TEJIDOS" : "ACCESORIOS";
+
+    const r = await pool
+      .request()
+      .input("id", id)
+      .query(`DELETE FROM ${tabla} WHERE id_producto=@id`);
+
+    if (r.rowsAffected[0] === 0) {
+      return res.status(404).json({ error: "Producto no encontrado" });
+    }
+
+    res.json({ message: "Producto eliminado" });
+  } catch (err) {
+    console.error("❌ Eliminar producto:", err);
+    res.status(500).json({ error: "Error eliminando producto" });
+  }
+};
