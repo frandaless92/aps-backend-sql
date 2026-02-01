@@ -78,6 +78,10 @@ exports.obtenerTodosLosProductos = async (req, res) => {
       SELECT
         id_producto AS id,
         descripcion + ' ' + cal + ' ' + pul + ' ' + alt + ' ' + long AS nombre,
+        cal,
+        pul,
+        alt,
+        long,
         stock,
         precio,
         precio_lista,
