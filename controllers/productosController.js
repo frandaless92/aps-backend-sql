@@ -96,8 +96,8 @@ exports.obtenerTodosLosProductos = async (req, res) => {
     // 🔥 Normalizar precios acá
     productos = productos.map((p) => ({
       ...p,
-      precio: parsePrecio(p.precio),
-      precio_lista: parsePrecio(p.precio_lista),
+      precio: p.precio,
+      precio_lista: p.precio_lista,
     }));
 
     // Ordenar por categoría y luego por nombre
