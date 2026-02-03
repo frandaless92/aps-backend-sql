@@ -17,7 +17,7 @@ exports.obtenerClientes = async (req, res) => {
         telefono,
         email
       FROM CLIENTES
-      ORDER BY apellido;
+      ORDER BY TRY_CONVERT(INT, apellido);
     `);
 
     res.json(result.recordset);
