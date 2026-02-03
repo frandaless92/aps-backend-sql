@@ -21,8 +21,8 @@ exports.obtenerClientes = async (req, res) => {
         CASE 
           WHEN TRY_CONVERT(INT, apellido) IS NOT NULL
             THEN TRY_CONVERT(INT, apellido)
-          ELSE 999999999
-        END,
+          ELSE -1
+        END DESC,
         apellido DESC;
     `);
 
