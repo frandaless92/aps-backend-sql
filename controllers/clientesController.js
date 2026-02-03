@@ -17,7 +17,13 @@ exports.obtenerClientes = async (req, res) => {
         telefono,
         email
       FROM CLIENTES
-      ORDER BY TRY_CONVERT(INT, apellido);
+      ORDER BY
+        CASE 
+          WHEN TRY_CONVERT(INT, apellido) IS NOT NULL
+            THEN TRY_CONVERT(INT, apellido)
+          ELSE 999999999
+        END,
+        apellido DESC;
     `);
 
     res.json(result.recordset);
@@ -102,5 +108,111 @@ exports.crearCliente = async (req, res) => {
   } catch (err) {
     console.error("❌ Error creando cliente:", err);
     res.status(500).json({ error: "Error creando cliente" });
+  }
+};
+
+exports.actualizarCliente = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const {
+      apellido,
+      nombre,
+      dni,
+      cuit,
+      empresa,
+      direccion,
+      codigo_postal,
+      telefono,
+      email,
+    } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: "ID de cliente requerido" });
+    }
+
+    // Validación mínima
+    if (!apellido || !telefono) {
+      return res.status(400).json({
+        error: "Apellido y teléfono son obligatorios",
+      });
+    }
+
+    const pool = await poolPromise;
+
+    const result = await pool
+      .request()
+      .input("id", id)
+      .input("apellido", apellido)
+      .input("nombre", nombre)
+      .input("dni", dni || null)
+      .input("cuit", cuit || null)
+      .input("empresa", empresa || null)
+      .input("direccion", direccion || null)
+      .input("codigo_postal", codigo_postal || null)
+      .input("telefono", telefono)
+      .input("email", email || null).query(`
+        UPDATE CLIENTES
+        SET
+          apellido = @apellido,
+          nombre = @nombre,
+          dni = @dni,
+          cuit = @cuit,
+          empresa = @empresa,
+          direccion = @direccion,
+          codigo_postal = @codigo_postal,
+          telefono = @telefono,
+          email = @email
+        WHERE id_cliente = @id;
+
+        SELECT
+          id_cliente AS id,
+          apellido,
+          nombre,
+          dni,
+          cuit,
+          empresa,
+          direccion,
+          codigo_postal,
+          telefono,
+          email
+        FROM CLIENTES
+        WHERE id_cliente = @id;
+      `);
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ error: "Cliente no encontrado" });
+    }
+
+    res.json(result.recordset[0]);
+  } catch (err) {
+    console.error("❌ Error actualizando cliente:", err);
+    res.status(500).json({ error: "Error actualizando cliente" });
+  }
+};
+
+exports.eliminarCliente = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ error: "ID de cliente requerido" });
+    }
+
+    const pool = await poolPromise;
+
+    const result = await pool.request().input("id", id).query(`
+        DELETE FROM CLIENTES
+        WHERE id_cliente = @id;
+      `);
+
+    if (result.rowsAffected[0] === 0) {
+      return res.status(404).json({ error: "Cliente no encontrado" });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Error eliminando cliente:", err);
+    res.status(500).json({ error: "Error eliminando cliente" });
   }
 };
