@@ -1,4 +1,5 @@
 const { poolPromise } = require("../config/db.js");
+const ExcelJS = require("exceljs");
 
 function parsePrecio(valor) {
   if (valor == null) return 0;
@@ -242,5 +243,120 @@ exports.eliminarProducto = async (req, res) => {
   } catch (err) {
     console.error("❌ Eliminar producto:", err);
     res.status(500).json({ error: "Error eliminando producto" });
+  }
+};
+
+exports.exportarProductosExcel = async (req, res) => {
+  try {
+    const pool = await poolPromise;
+
+    // ============================
+    // ACCESORIOS
+    // ============================
+    const accesorios = await pool.request().query(`
+      SELECT
+        id_producto AS id,
+        descripcion AS nombre,
+        stock,
+        precio,
+        precio_lista
+      FROM ACCESORIOS
+      ORDER BY descripcion
+    `);
+
+    // ============================
+    // TEJIDOS
+    // ============================
+    const tejidos = await pool.request().query(`
+      SELECT
+        id_producto AS id,
+        descripcion,
+        cal,
+        pul,
+        alt,
+        long,
+        stock,
+        precio,
+        precio_lista
+      FROM TEJIDOS
+      ORDER BY descripcion
+    `);
+
+    // ============================
+    // EXCEL
+    // ============================
+    const workbook = new ExcelJS.Workbook();
+
+    // ---------- HOJA ACCESORIOS ----------
+    const sheetAcc = workbook.addWorksheet("Accesorios");
+
+    sheetAcc.columns = [
+      { header: "ID", key: "id", width: 10 },
+      { header: "Descripción", key: "nombre", width: 40 },
+      { header: "Stock", key: "stock", width: 12 },
+      { header: "Precio Contado", key: "precio", width: 15 },
+      { header: "Precio Lista", key: "precio_lista", width: 15 },
+    ];
+
+    accesorios.recordset.forEach((p) => {
+      sheetAcc.addRow({
+        id: p.id,
+        nombre: p.nombre,
+        stock: p.stock,
+        precio: Number(p.precio),
+        precio_lista: Number(p.precio_lista),
+      });
+    });
+
+    sheetAcc.getRow(1).font = { bold: true };
+
+    // ---------- HOJA TEJIDOS ----------
+    const sheetTej = workbook.addWorksheet("Tejidos");
+
+    sheetTej.columns = [
+      { header: "ID", key: "id", width: 10 },
+      { header: "Descripción", key: "descripcion", width: 30 },
+      { header: "Calibre", key: "cal", width: 10 },
+      { header: "Pulgada", key: "pul", width: 10 },
+      { header: "Altura", key: "alt", width: 10 },
+      { header: "Longitud", key: "long", width: 10 },
+      { header: "Stock", key: "stock", width: 12 },
+      { header: "Precio Contado", key: "precio", width: 15 },
+      { header: "Precio Lista", key: "precio_lista", width: 15 },
+    ];
+
+    tejidos.recordset.forEach((p) => {
+      sheetTej.addRow({
+        id: p.id,
+        descripcion: p.descripcion,
+        cal: p.cal,
+        pul: p.pul,
+        alt: p.alt,
+        long: p.long,
+        stock: p.stock,
+        precio: Number(p.precio),
+        precio_lista: Number(p.precio_lista),
+      });
+    });
+
+    sheetTej.getRow(1).font = { bold: true };
+
+    // ============================
+    // RESPUESTA
+    // ============================
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="productos.xlsx"',
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error("❌ Exportar Excel productos:", err);
+    res.status(500).json({ error: "Error generando Excel de productos" });
   }
 };

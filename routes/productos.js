@@ -7,6 +7,7 @@ const {
   actualizarProducto,
   eliminarProducto,
   actualizarStock,
+  exportarProductosExcel,
 } = require("../controllers/productosController.js");
 
 router.get("/", obtenerTodosLosProductos);
@@ -15,6 +16,7 @@ router.get("/", obtenerTodosLosProductos);
 router.post("/", crearProducto);
 router.put("/:id", actualizarProducto);
 router.delete("/:id", eliminarProducto);
+router.get("/excel", exportarProductosExcel);
 
 // stock puntual
 router.post("/update-stock", actualizarStock);
