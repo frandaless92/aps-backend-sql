@@ -49,14 +49,8 @@ export function renderManageBudgets(container) {
 
               <div class="table-responsive">
                 <table class="table align-middle">
-                  <thead class="table-light">
-                    <tr>
-                      <th>N°</th>
-                      <th>Estado</th>
-                      <th>Pago</th>
-                      <th class="text-end">Acciones</th>
-                    </tr>
-                  </thead>
+                  <thead class="table-light" id="budgetsHead"></thead>
+
                   <tbody id="budgetsTable"></tbody>
                 </table>
                 <div id="loadingState"
@@ -87,7 +81,7 @@ export function renderManageBudgets(container) {
         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
           <div class="modal-content">
             <div class="modal-header">
-              <h5 class="modal-title fw-bold">
+              <h5 class="modal-title fw-bold" id="productosModalLabel">
                 Productos del presupuesto
               </h5>
               <button class="btn-close" data-bs-dismiss="modal"></button>
@@ -195,6 +189,53 @@ export function renderManageBudgets(container) {
           </div>
         </div>
       </div>
+      <!-- =========================
+          MODAL ENTREGAR
+      ========================== -->
+      <div class="modal fade" id="entregarModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+
+            <div class="modal-header">
+              <h5 class="modal-title fw-bold">
+                Confirmar Entrega
+              </h5>
+              <button class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+
+              <label class="form-label fw-semibold mb-2">
+                Método de pago
+              </label>
+
+              <select id="metodoPagoSelect" class="form-select">
+                <option value="">Seleccione...</option>
+                <option value="EFECTIVO">💵 Efectivo</option>
+                <option value="TRANSFERENCIA">🏦 Transferencia</option>
+                <option value="TARJETA">💳 Tarjeta</option>
+                <option value="DEBE">📄 Debe</option>
+              </select>
+
+            </div>
+
+            <div class="modal-footer">
+              <button class="btn btn-secondary"
+                      data-bs-dismiss="modal">
+                Cancelar
+              </button>
+
+              <button id="confirmarEntrega"
+                      class="btn btn-primary"
+                      disabled>
+                Confirmar entrega
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
 
 
     </main>
@@ -215,6 +256,10 @@ export function renderManageBudgets(container) {
     const estadoBtns = container.querySelectorAll(".estado-btn");
     const tipoSelect = container.querySelector("#tipoEntrega");
     const bloqueEnvio = container.querySelector("#bloqueEnvio");
+    const thead = container.querySelector("#budgetsHead");
+    const entregarModal = new bootstrap.Modal(
+      container.querySelector("#entregarModal"),
+    );
 
     tipoSelect.addEventListener("change", () => {
       if (tipoSelect.value === "ENVIO") {
@@ -285,6 +330,36 @@ export function renderManageBudgets(container) {
     }
 
     function render() {
+      // 🔹 HEADER DINÁMICO
+      if (estadoActual === "PREPARAR") {
+        thead.innerHTML = `
+      <tr>
+        <th>N°</th>
+        <th>Estado</th>
+        <th>Tipo Entrega</th>
+        <th class="text-end">Acciones</th>
+      </tr>
+    `;
+      } else if (estadoActual === "ENTREGADO") {
+        thead.innerHTML = `
+      <tr>
+        <th>N°</th>
+        <th>Estado</th>
+        <th>Método de Pago</th>
+        <th>Monto Total</th>
+        <th>Fecha de Entrega</th>
+        <th class="text-end">Acciones</th>
+      </tr>
+    `;
+      } else {
+        thead.innerHTML = `
+      <tr>
+        <th>N°</th>
+        <th>Estado</th>
+        <th class="text-end">Acciones</th>
+      </tr>
+    `;
+      }
       const filtrados = presupuestos.filter(
         (p) => normalizarEstadoUI(p.ESTADO) === estadoActual,
       );
@@ -319,16 +394,39 @@ export function renderManageBudgets(container) {
       }
 
       filtrados.forEach((p) => {
+        const columnaEntrega =
+          estadoActual === "PREPARAR" ? `<td>${renderTipoEntrega(p)}</td>` : "";
+
+        const columnaPago =
+          estadoActual === "ENTREGADO"
+            ? `<td>${p.DATOS_ADICIONALES?.metodoPago || "-"}</td>`
+            : "";
+        const columnaMonto =
+          estadoActual === "ENTREGADO"
+            ? `<td>$${p.DATOS_ADICIONALES?.montoTotal || "-"}</td>`
+            : "";
+        const columnaFecha =
+          estadoActual === "ENTREGADO"
+            ? `<td>${
+                p.FECHA_ENTREGA
+                  ? p.FECHA_ENTREGA.split("T")[0].split("-").reverse().join("/")
+                  : "-"
+              }</td>`
+            : "";
+
         const tr = document.createElement("tr");
 
-        tr.innerHTML = `
-        <td>#${p.PRESUPUESTO}</td>
+        tr.innerHTML = `<td>#${p.PRESUPUESTO}</td>
         <td>
           <span class="badge bg-${colorEstado(p.ESTADO)}">
             ${normalizarEstadoUI(p.ESTADO)}
           </span>
         </td>
-        <td>${p.REFERENCIA_PAGO || "-"}</td>
+
+        ${columnaEntrega}
+        ${columnaPago}
+        ${columnaMonto}
+        ${columnaFecha}
         <td class="text-end">
           <div class="btn-group btn-group-sm">
 
@@ -434,6 +532,11 @@ export function renderManageBudgets(container) {
         abrirModalPreparar(p);
         return;
       }
+      if (accion === "CONFIRMADO" || accion === "ENTREGADO") {
+        abrirModalEntrega(p);
+        return;
+      }
+
       if (accion === "ELIMINAR") {
         const confirm = await Swal.fire({
           icon: "warning",
@@ -463,21 +566,150 @@ export function renderManageBudgets(container) {
 
     function mostrarProductos(p) {
       const div = container.querySelector("#productosDetalle");
-      div.innerHTML = p.PRODUCTOS.map(
+      document.getElementById("productosModalLabel").textContent =
+        `Listado de Productos del Presupuesto #${p.PRESUPUESTO}`;
+
+      let htmlProductos = p.PRODUCTOS.map(
         (prod) => `
-        <div class="border rounded p-2 mb-2 bg-light">
-          <span class="badge ${
-            prod.tipo === "ACCESORIOS" ? "bg-primary" : "bg-secondary"
-          }">${prod.tipo}</span>
-          <div class="fw-semibold mt-1">${prod.descripcion}</div>
-          <small class="text-muted">
-            ID: ${prod.id} | Cantidad: ${prod.cantidad}
-          </small>
-        </div>
-      `,
+      <div class="border rounded p-2 mb-2 bg-light">
+        <span class="badge ${
+          prod.tipo === "ACCESORIOS" ? "bg-primary" : "bg-secondary"
+        }">${prod.tipo}</span>
+        <div class="fw-semibold mt-1">${prod.descripcion}</div>
+        <small class="text-muted">
+          ID: ${prod.id} | Cantidad: ${prod.cantidad}
+        </small>
+      </div>
+    `,
       ).join("");
 
+      let htmlEntrega = "";
+
+      if (p.ESTADO === "PREPARAR" && p.DATOS_ADICIONALES) {
+        const d = p.DATOS_ADICIONALES;
+        document.getElementById("productosModalLabel").textContent =
+          `Detalle del Presupuesto #${p.PRESUPUESTO}`;
+
+        htmlEntrega = `
+          <hr>
+          <div class="border rounded p-3 bg-white shadow-sm">
+            <h6 class="fw-bold mb-3 text-success">
+              <i class="bi bi-clipboard-check me-2"></i>
+              Datos de Entrega
+            </h6>
+
+            <div class="mb-1">
+              <i class="bi bi-box me-2 text-muted"></i>
+              <strong>Tipo:</strong> ${d.tipoEntrega || "-"}
+            </div>
+
+            <div class="mb-1">
+              <i class="bi bi-calendar-event me-2 text-muted"></i>
+              <strong>Fecha:</strong> ${d.fechaEntrega || "-"}
+            </div>
+
+            <div class="mb-1">
+              <i class="bi bi-clock me-2 text-muted"></i>
+              <strong>Hora:</strong> ${d.horaEntrega || "-"}
+            </div>
+
+            <div class="mb-1">
+              <i class="bi bi-geo-alt me-2 text-muted"></i>
+              <strong>Dirección:</strong> ${d.direccion || "-"}
+            </div>
+
+            <div class="mb-1">
+              <i class="bi bi-link-45deg me-2 text-muted"></i>
+              <strong>Ubicación:</strong>
+              ${
+                d.linkMaps
+                  ? `<a href="${d.linkMaps}" target="_blank">Abrir en Google Maps</a>`
+                  : "-"
+              }
+            </div>
+
+            <div class="mt-2">
+              <i class="bi bi-chat-left-text me-2 text-muted"></i>
+              <strong>Observaciones:</strong>
+              ${d.datosAdicionales || "-"}
+            </div>
+          </div>
+        `;
+      }
+
+      div.innerHTML = htmlProductos + htmlEntrega;
+
       productosModal.show();
+    }
+
+    function renderTipoEntrega(p) {
+      if (!p.DATOS_ADICIONALES) return "-";
+
+      const datos = p.DATOS_ADICIONALES;
+      if (!datos.tipoEntrega || !datos.fechaEntrega) return "-";
+
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+
+      const [year, month, day] = datos.fechaEntrega.split("-").map(Number);
+      const fechaEntrega = new Date(year, month - 1, day); // 👈 LOCAL, no UTC
+      fechaEntrega.setHours(0, 0, 0, 0);
+
+      const diffTime = fechaEntrega - hoy;
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+      // 🎨 Badge tipo
+      let badgeTipo = "";
+      if (datos.tipoEntrega === "ENVIO") {
+        badgeTipo = `
+      <span class="badge bg-info me-1">
+        <i class="bi bi-truck me-1"></i>
+        Envío
+      </span>
+    `;
+      } else {
+        badgeTipo = `
+      <span class="badge bg-secondary me-1">
+        <i class="bi bi-box-seam me-1"></i>
+        Retira
+      </span>
+    `;
+      }
+
+      // 🎨 Badge fecha dinámica
+      let badgeFecha = "";
+
+      if (diffDays === 0) {
+        badgeFecha = `
+      <span class="badge bg-danger">
+        <i class="bi bi-exclamation-circle me-1"></i>
+        HOY
+      </span>
+    `;
+      } else if (diffDays === 1) {
+        badgeFecha = `
+      <span class="badge bg-warning text-dark">
+        <i class="bi bi-clock me-1"></i>
+        MAÑANA
+      </span>
+    `;
+      } else if (diffDays > 1) {
+        badgeFecha = `
+      <span class="badge bg-success">
+        <i class="bi bi-calendar-check me-1"></i>
+        Programado
+      </span>
+    `;
+      } else {
+        badgeFecha = `
+      <span class="badge bg-dark">
+        <i class="bi bi-x-circle me-1"></i>
+        Vencido
+      </span>
+    `;
+      }
+
+      return badgeTipo + badgeFecha;
     }
 
     async function descargarPDF(numero) {
@@ -541,12 +773,16 @@ export function renderManageBudgets(container) {
       container.querySelector("#confirmarPreparar").onclick =
         async function () {
           const tipo = container.querySelector("#tipoEntrega").value;
+          const fechaEntrega = container.querySelector("#fechaEntrega").value;
+          const horaEntrega = container.querySelector("#horaEntrega").value;
           const direccion = container.querySelector("#direccionEntrega").value;
-          const link = container.querySelector("#linkMaps").value;
+          const linkMaps = container.querySelector("#linkMaps").value;
           const datosAdicionales =
             container.querySelector("#datosAdicionales").value;
+          console.log("FECHA:", fechaEntrega);
+          console.log("HORA:", horaEntrega);
 
-          await fetch("/api/presupuestos/gestion/cambiar-estado", {
+          const resp = await fetch("/api/presupuestos/gestion/cambiar-estado", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -554,15 +790,62 @@ export function renderManageBudgets(container) {
               nuevoEstado: "PREPARAR",
               productos: p.PRODUCTOS,
               tipoEntrega: tipo,
-              direccion,
-              linkMaps: link,
+              fechaEntrega: fechaEntrega,
+              horaEntrega: horaEntrega,
+              direccion: tipo === "ENVIO" ? direccion : null,
+              linkMaps: tipo === "ENVIO" ? linkMaps : null,
               datosAdicionales,
             }),
           });
 
+          const data = await resp.json();
+
+          if (!data.ok) {
+            Swal.fire("Error", data.error || "No se pudo actualizar", "error");
+            return;
+          }
+
           prepararModal.hide();
           await cargar();
         };
+    }
+
+    function abrirModalEntrega(p) {
+      const select = container.querySelector("#metodoPagoSelect");
+      const btnConfirmar = container.querySelector("#confirmarEntrega");
+
+      select.value = "";
+      btnConfirmar.disabled = true;
+
+      select.onchange = () => {
+        btnConfirmar.disabled = !select.value;
+      };
+
+      btnConfirmar.onclick = async () => {
+        const metodoPago = select.value;
+
+        const resp = await fetch("/api/presupuestos/gestion/cambiar-estado", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            presupuesto: p.PRESUPUESTO,
+            nuevoEstado: "CONFIRMADO",
+            metodoPago,
+          }),
+        });
+
+        const data = await resp.json();
+
+        if (!data.ok) {
+          Swal.fire("Error", data.error || "No se pudo entregar", "error");
+          return;
+        }
+
+        entregarModal.hide();
+        await cargar();
+      };
+
+      entregarModal.show();
     }
 
     const linkInput = container.querySelector("#linkMaps");
@@ -744,6 +1027,15 @@ export function renderManageBudgets(container) {
       .querySelector("#prepararModal")
       .addEventListener("hidden.bs.modal", resetModalPreparar);
 
+    container
+      .querySelector("#entregarModal")
+      .addEventListener("hidden.bs.modal", () => {
+        const select = container.querySelector("#metodoPagoSelect");
+        const btnConfirmar = container.querySelector("#confirmarEntrega");
+        select.value = "";
+        btnConfirmar.disabled = true;
+      });
+
     function debounce(fn, delay = 600) {
       let timeout;
       return (...args) => {
@@ -766,6 +1058,7 @@ export function renderManageBudgets(container) {
       const warning = container.querySelector("#direccionWarning");
       const bloqueEnvio = container.querySelector("#bloqueEnvio");
       const btnConfirmar = container.querySelector("#confirmarPreparar");
+      const datosAdicionales = container.querySelector("#datosAdicionales");
 
       // Reset valores
       tipo.value = "ENTREGA";
@@ -773,6 +1066,7 @@ export function renderManageBudgets(container) {
       hora.value = "";
       direccion.value = "";
       link.value = "";
+      datosAdicionales.value = "";
 
       // Reset clases visuales
       direccion.classList.remove("is-valid", "is-invalid");

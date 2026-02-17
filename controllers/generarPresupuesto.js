@@ -57,7 +57,18 @@ exports.eliminarPresupuesto = async (req, res) => {
 };
 
 exports.cambiarEstado = async (req, res) => {
-  const { presupuesto, nuevoEstado, productos } = req.body;
+  const {
+    presupuesto,
+    nuevoEstado,
+    productos,
+    tipoEntrega,
+    fechaEntrega,
+    horaEntrega,
+    direccion,
+    linkMaps,
+    datosAdicionales,
+    metodoPago, // 👈 NUEVO (solo cuando ENTREGADO)
+  } = req.body;
 
   if (!presupuesto || !nuevoEstado) {
     return res.status(400).json({
@@ -69,12 +80,12 @@ exports.cambiarEstado = async (req, res) => {
 
   try {
     const pool = await poolPromise;
-
-    // Crear transacción correctamente
     transaction = new sql.Transaction(pool);
     await transaction.begin();
 
-    // 0. OBTENER ESTADO ACTUAL
+    // =====================================
+    // 1️⃣ OBTENER ESTADO + DATOS ACTUALES
+    // =====================================
     const reqEstado = new sql.Request(transaction);
 
     const estadoActualResult = await reqEstado.input(
@@ -82,10 +93,10 @@ exports.cambiarEstado = async (req, res) => {
       sql.NVarChar,
       presupuesto,
     ).query(`
-    SELECT ESTADO
-    FROM ARCHIVOPRESUPUESTO
-    WHERE PRESUPUESTO = @PRESUPUESTO
-  `);
+        SELECT ESTADO, DATOS_ADICIONALES
+        FROM ARCHIVOPRESUPUESTO
+        WHERE PRESUPUESTO = @PRESUPUESTO
+      `);
 
     if (estadoActualResult.recordset.length === 0) {
       await transaction.rollback();
@@ -96,28 +107,91 @@ exports.cambiarEstado = async (req, res) => {
 
     const estadoAnterior = estadoActualResult.recordset[0].ESTADO;
 
-    // 1. ACTUALIZAR ESTADO DEL PRESUPUESTO
+    let datosPrevios = {};
+
+    if (estadoActualResult.recordset[0].DATOS_ADICIONALES) {
+      try {
+        datosPrevios = JSON.parse(
+          estadoActualResult.recordset[0].DATOS_ADICIONALES,
+        );
+      } catch (e) {
+        datosPrevios = {};
+      }
+    }
+
+    // =====================================
+    // 2️⃣ ARMAR NUEVO JSON SEGÚN ESTADO
+    // =====================================
+    let datosJson = null;
+    let fechaEntregaReal = null;
+
+    // 🔵 CUANDO PASA A PREPARAR
+    if (nuevoEstado === "PREPARAR") {
+      const payloadEntrega = {
+        tipoEntrega: tipoEntrega || null,
+        fechaEntrega: fechaEntrega || null,
+        horaEntrega: horaEntrega || null,
+        direccion: direccion || null,
+        linkMaps: linkMaps || null,
+        datosAdicionales: datosAdicionales || null,
+        fechaRegistro: new Date().toISOString(),
+      };
+
+      datosJson = JSON.stringify(payloadEntrega);
+    }
+
+    // 🟢 CUANDO PASA A ENTREGADO
+    if (nuevoEstado === "CONFIRMADO") {
+      const ahora = new Date();
+
+      const payloadActualizado = {
+        ...datosPrevios,
+        metodoPago: metodoPago || null,
+        fechaEntregaReal: ahora.toISOString(),
+      };
+
+      datosJson = JSON.stringify(payloadActualizado);
+      fechaEntregaReal = ahora;
+    }
+
+    // =====================================
+    // 3️⃣ UPDATE PRINCIPAL
+    // =====================================
     const reqUpdate = new sql.Request(transaction);
 
-    await reqUpdate
+    reqUpdate
       .input("PRESUPUESTO", sql.NVarChar, presupuesto)
-      .input("ESTADO", sql.NVarChar, nuevoEstado).query(`
-    UPDATE ARCHIVOPRESUPUESTO
-    SET ESTADO = @ESTADO
-    WHERE PRESUPUESTO = @PRESUPUESTO
-  `);
+      .input("ESTADO", sql.NVarChar, nuevoEstado)
+      .input("DATOS_ADICIONALES", sql.NVarChar(sql.MAX), datosJson);
 
-    // 2. SI ES CONFIRMADO -> DESCONTAR STOCK
+    if (fechaEntregaReal) {
+      reqUpdate.input("FECHA_ENTREGA", sql.DateTime, fechaEntregaReal);
+    }
+
+    await reqUpdate.query(`
+      UPDATE ARCHIVOPRESUPUESTO
+      SET ESTADO = @ESTADO,
+          DATOS_ADICIONALES = CASE 
+                                WHEN @DATOS_ADICIONALES IS NOT NULL 
+                                THEN @DATOS_ADICIONALES 
+                                ELSE DATOS_ADICIONALES 
+                              END
+          ${fechaEntregaReal ? ", FECHA_ENTREGA = @FECHA_ENTREGA" : ""}
+      WHERE PRESUPUESTO = @PRESUPUESTO
+    `);
+
+    // =====================================
+    // 4️⃣ DESCONTAR STOCK SI PREPARAR
+    // =====================================
     if (nuevoEstado === "PREPARAR") {
       if (!Array.isArray(productos)) {
         await transaction.rollback();
         return res.status(400).json({
-          error: "Debes enviar productos para confirmar el presupuesto.",
+          error: "Debes enviar productos para preparar el presupuesto.",
         });
       }
 
       for (const prod of productos) {
-        // 🟢 Mano de obra no toca stock
         if (prod.tipo === "SERVICIO") continue;
 
         const tabla =
@@ -145,17 +219,11 @@ exports.cambiarEstado = async (req, res) => {
       }
     }
 
-    // 2.b SI SE RECHAZA Y ANTES ESTABA EN PREPARAR -> DEVOLVER STOCK
+    // =====================================
+    // 5️⃣ DEVOLVER STOCK SI RECHAZADO
+    // =====================================
     if (nuevoEstado === "RECHAZADO" && estadoAnterior === "PREPARAR") {
-      if (!Array.isArray(productos)) {
-        await transaction.rollback();
-        return res.status(400).json({
-          error: "Debes enviar productos para revertir stock.",
-        });
-      }
-
-      for (const prod of productos) {
-        // 🟢 Mano de obra no toca stock
+      for (const prod of productos || []) {
         if (prod.tipo === "SERVICIO") continue;
 
         const tabla =
@@ -165,25 +233,22 @@ exports.cambiarEstado = async (req, res) => {
               ? "TEJIDOS"
               : null;
 
-        if (!tabla) {
-          await transaction.rollback();
-          return res.status(400).json({
-            error: `Tipo de producto no válido: ${prod.tipo}`,
-          });
-        }
+        if (!tabla) continue;
 
         const req2 = new sql.Request(transaction);
         await req2
           .input("ID_PRODUCTO", sql.NVarChar, prod.id)
           .input("CANTIDAD", sql.Numeric(10, 2), prod.cantidad).query(`
-        UPDATE ${tabla}
-        SET stock = stock + @CANTIDAD
-        WHERE id_producto = @ID_PRODUCTO
-      `);
+            UPDATE ${tabla}
+            SET stock = stock + @CANTIDAD
+            WHERE id_producto = @ID_PRODUCTO
+          `);
       }
     }
 
-    // 3. FINALIZAR TRANSACCIÓN
+    // =====================================
+    // 6️⃣ COMMIT
+    // =====================================
     await transaction.commit();
 
     return res.json({
@@ -253,6 +318,8 @@ exports.gestionarPresupuestos = async (req, res) => {
       SELECT 
         p.PRESUPUESTO,
         p.ESTADO,
+        p.DATOS_ADICIONALES,
+        p.FECHA_ENTREGA,
         rp.REFERENCIA,
         cs.TIPO,
         cs.ID_PRODUCTO,
@@ -290,10 +357,22 @@ exports.gestionarPresupuestos = async (req, res) => {
 
     for (const row of rows) {
       if (!map[row.PRESUPUESTO]) {
+        let datosParsed = null;
+
+        if (row.DATOS_ADICIONALES) {
+          try {
+            datosParsed = JSON.parse(row.DATOS_ADICIONALES);
+          } catch (e) {
+            console.warn("Error parseando DATOS_ADICIONALES", e);
+          }
+        }
+
         map[row.PRESUPUESTO] = {
           PRESUPUESTO: row.PRESUPUESTO,
           ESTADO: row.ESTADO,
           REFERENCIA_PAGO: row.REFERENCIA || "No posee",
+          DATOS_ADICIONALES: datosParsed,
+          FECHA_ENTREGA: row.FECHA_ENTREGA || null,
           PRODUCTOS: [],
         };
       }
