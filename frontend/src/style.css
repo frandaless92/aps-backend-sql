@@ -219,6 +219,15 @@ a {
   z-index: 20000 !important;
 }
 
+#fechaEntrega,
+#horaEntrega {
+  text-align: center;
+}
+
+#datosAdicionales {
+  resize: none;
+}
+
 /* Responsive ajuste: mobile */
 @media (max-width: 991px) {
   .card h6 {

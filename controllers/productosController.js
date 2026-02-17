@@ -360,3 +360,40 @@ exports.exportarProductosExcel = async (req, res) => {
     res.status(500).json({ error: "Error generando Excel de productos" });
   }
 };
+
+exports.actualizarPreciosMasivo = async (req, res) => {
+  try {
+    const { porcentaje } = req.body;
+
+    if (porcentaje === undefined || isNaN(Number(porcentaje))) {
+      return res.status(400).json({ error: "Porcentaje inválido" });
+    }
+
+    const pool = await poolPromise;
+    const p = Number(porcentaje);
+
+    // =============================
+    // ACCESORIOS
+    // =============================
+    await pool.request().input("porcentaje", p).query(`
+        UPDATE ACCESORIOS
+        SET precio_lista = precio + (precio * (@porcentaje / 100.0))
+      `);
+
+    // =============================
+    // TEJIDOS
+    // =============================
+    await pool.request().input("porcentaje", p).query(`
+        UPDATE TEJIDOS
+        SET precio_lista = precio + (precio * (@porcentaje / 100.0))
+      `);
+
+    res.json({
+      message: "Precios actualizados correctamente",
+      porcentaje: p,
+    });
+  } catch (err) {
+    console.error("❌ Error actualizando precios:", err);
+    res.status(500).json({ error: "Error actualizando precios masivamente" });
+  }
+};

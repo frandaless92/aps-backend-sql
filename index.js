@@ -22,7 +22,13 @@ const FRONTEND_DIST = path.join(__dirname, "frontend", "dist");
 /* ================================
    MIDDLEWARES BASE
 ================================ */
-app.use(cors());
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  }),
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());

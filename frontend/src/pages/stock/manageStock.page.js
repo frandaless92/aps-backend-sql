@@ -138,7 +138,43 @@ export function renderManageStock(container) {
           </div>
         </div>
       </div>
+      <!-- =========================
+      ACTUALIZAR PRECIOS MASIVO
+      ========================== -->
+      <div class="row mt-4">
+        <div class="col-12">
+          <div class="card shadow-sm fade-up border-warning">
+            <div class="card-body py-3 d-flex justify-content-between align-items-center">
 
+              <div class="flex-grow-1 me-3">
+                <h6 class="fw-bold mb-1">Actualizar precios masivamente</h6>
+                <small class="text-muted">
+                  El porcentaje ingresado se aplicará como diferencia sobre el precio contado
+                </small>
+              </div>
+
+              <div class="d-flex align-items-center gap-2">
+                <input 
+                  id="inputPorcentaje"
+                  type="number"
+                  step="0.1"
+                  class="form-control form-control-sm"
+                  placeholder="%"
+                  style="width: 100px;"
+                />
+
+                <button 
+                  id="btnActualizarPrecios"
+                  class="btn btn-warning btn-sm"
+                >
+                  Actualizar inventario
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
     </main>
   `;
 
@@ -181,6 +217,9 @@ export function renderManageStock(container) {
   const pageInfo = container.querySelector("#pageInfo");
 
   const btnExportarExcel = container.querySelector("#btnExportarExcel");
+
+  const inputPorcentaje = container.querySelector("#inputPorcentaje");
+  const btnActualizarPrecios = container.querySelector("#btnActualizarPrecios");
 
   function parseDecimal(value) {
     if (typeof value !== "string") return Number(value);
@@ -556,6 +595,54 @@ export function renderManageStock(container) {
     } catch (err) {
       console.error(err);
       Swal.fire("Error", "No se pudo generar el archivo Excel", "error");
+    }
+  };
+
+  btnActualizarPrecios.onclick = async () => {
+    const porcentaje = parseFloat(inputPorcentaje.value);
+
+    if (isNaN(porcentaje)) {
+      return Swal.fire("Atención", "Ingrese un porcentaje válido", "warning");
+    }
+
+    const confirmacion = await Swal.fire({
+      title: "Actualizar precios",
+      text: `Se aplicará ${porcentaje}% sobre todos los productos`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Actualizar",
+      cancelButtonText: "Cancelar",
+    });
+
+    if (!confirmacion.isConfirmed) return;
+
+    try {
+      Swal.fire({
+        title: "Actualizando inventario...",
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
+      const resp = await fetch("/api/productos/actualizar-precios", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ porcentaje }),
+      });
+
+      if (!resp.ok) throw new Error("Error backend");
+
+      await Swal.fire({
+        icon: "success",
+        title: "Precios actualizados correctamente",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
+      inputPorcentaje.value = "";
+      await cargar();
+    } catch (err) {
+      console.error(err);
+      Swal.fire("Error", "No se pudieron actualizar los precios", "error");
     }
   };
 

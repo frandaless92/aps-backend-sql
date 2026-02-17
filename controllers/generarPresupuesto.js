@@ -249,86 +249,69 @@ exports.gestionarPresupuestos = async (req, res) => {
   try {
     const pool = await poolPromise;
 
-    // 1) TRAER TODOS LOS PRESUPUESTOS
-    const presupuestosRes = await pool.request().query(`
-      SELECT PRESUPUESTO, ESTADO
-      FROM ARCHIVOPRESUPUESTO
-      ORDER BY PRESUPUESTO ASC
+    const result = await pool.request().query(`
+      SELECT 
+        p.PRESUPUESTO,
+        p.ESTADO,
+        rp.REFERENCIA,
+        cs.TIPO,
+        cs.ID_PRODUCTO,
+        cs.CANTIDAD,
+
+        CASE 
+          WHEN cs.TIPO = 'ACCESORIOS' THEN a.descripcion
+          WHEN cs.TIPO = 'TEJIDOS' 
+            THEN t.descripcion + ' ' + t.cal + ' ' + t.pul + ' ' + t.alt + ' ' + t.long
+        END AS descripcion
+
+      FROM ARCHIVOPRESUPUESTO p
+
+      LEFT JOIN CONTROLSTOCK cs 
+        ON p.PRESUPUESTO = cs.PRESUPUESTO
+
+      LEFT JOIN REFERENCIAPAGO rp
+        ON p.PRESUPUESTO = rp.PRESUPUESTO
+
+      LEFT JOIN ACCESORIOS a
+        ON cs.TIPO = 'ACCESORIOS'
+        AND TRY_CAST(cs.ID_PRODUCTO AS INT) = a.id_producto
+
+      LEFT JOIN TEJIDOS t
+        ON cs.TIPO = 'TEJIDOS'
+        AND TRY_CAST(cs.ID_PRODUCTO AS INT) = t.id_producto
+
+
+      ORDER BY p.PRESUPUESTO ASC
     `);
 
-    const presupuestos = presupuestosRes.recordset;
+    const rows = result.recordset;
 
-    const resultadoFinal = [];
+    const map = {};
 
-    // 2) RECORRER CADA PRESUPUESTO
-    for (const p of presupuestos) {
-      // 2.1) BUSCAR PRODUCTOS ASOCIADOS
-      const productosRes = await pool.request().input("pres", p.PRESUPUESTO)
-        .query(`
-          SELECT TIPO, ID_PRODUCTO, CANTIDAD
-          FROM CONTROLSTOCK
-          WHERE PRESUPUESTO = @pres
-        `);
-
-      const productos = [];
-
-      // 2.2) BUSCAR REFERENCIA DE PAGO (SI EXISTE)
-      const refRes = await pool.request().input("pres", p.PRESUPUESTO).query(`
-            SELECT REFERENCIA
-            FROM REFERENCIAPAGO
-            WHERE PRESUPUESTO = @pres
-          `);
-
-      const referenciaPago =
-        refRes.recordset.length > 0
-          ? refRes.recordset[0].REFERENCIA
-          : "No posee";
-
-      // 3) ARMAR ARRAY DE PRODUCTOS PARA ESTE PRESUPUESTO
-      for (const prod of productosRes.recordset) {
-        let descripcion = "";
-
-        if (prod.TIPO === "ACCESORIOS") {
-          const acc = await pool.request().input("id", prod.ID_PRODUCTO).query(`
-              SELECT descripcion AS descripcion
-              FROM ACCESORIOS
-              WHERE id_producto = @id
-            `);
-
-          descripcion = acc.recordset[0]?.descripcion || "Sin descripción";
-        }
-
-        if (prod.TIPO === "TEJIDOS") {
-          const tej = await pool.request().input("id", prod.ID_PRODUCTO).query(`
-              SELECT descripcion + ' ' + cal + ' ' + pul + ' ' + alt + ' ' + long AS descripcion
-              FROM TEJIDOS
-              WHERE id_producto = @id
-            `);
-
-          descripcion = tej.recordset[0]?.descripcion || "Sin descripción";
-        }
-
-        productos.push({
-          id: prod.ID_PRODUCTO,
-          descripcion,
-          cantidad: prod.CANTIDAD,
-          tipo: prod.TIPO,
-        });
+    for (const row of rows) {
+      if (!map[row.PRESUPUESTO]) {
+        map[row.PRESUPUESTO] = {
+          PRESUPUESTO: row.PRESUPUESTO,
+          ESTADO: row.ESTADO,
+          REFERENCIA_PAGO: row.REFERENCIA || "No posee",
+          PRODUCTOS: [],
+        };
       }
 
-      // 4) PUSH DEL OBJETO COMPLETO
-      resultadoFinal.push({
-        PRESUPUESTO: p.PRESUPUESTO,
-        ESTADO: p.ESTADO,
-        REFERENCIA_PAGO: referenciaPago,
-        PRODUCTOS: productos,
-      });
+      if (row.ID_PRODUCTO) {
+        map[row.PRESUPUESTO].PRODUCTOS.push({
+          id: row.ID_PRODUCTO,
+          descripcion: row.descripcion,
+          cantidad: row.CANTIDAD,
+          tipo: row.TIPO,
+        });
+      }
     }
 
-    res.json(resultadoFinal);
+    res.json(Object.values(map));
   } catch (err) {
-    console.error("Error en /presupuestos/gestion:", err);
-    res.status(500).json({ error: "Error interno en el servidor" });
+    console.error("Error en gestionarPresupuestos:", err);
+    res.status(500).json({ error: "Error interno" });
   }
 };
 
@@ -477,5 +460,60 @@ exports.generarPresupuesto = async (req, res) => {
   } catch (error) {
     console.error("❌ Error al generar presupuesto:", error);
     return res.status(500).json({ error: "Error generando el presupuesto" });
+  }
+};
+
+exports.borrarRechazados = async (req, res) => {
+  let transaction;
+
+  try {
+    const pool = await poolPromise;
+    transaction = new sql.Transaction(pool);
+    await transaction.begin();
+
+    const req1 = new sql.Request(transaction);
+
+    const deleteStock = await req1.query(`
+      DELETE FROM CONTROLSTOCK
+      WHERE PRESUPUESTO IN (
+        SELECT PRESUPUESTO
+        FROM ARCHIVOPRESUPUESTO
+        WHERE ESTADO = 'RECHAZADO'
+      )
+    `);
+
+    const req2 = new sql.Request(transaction);
+
+    const deleteRef = await req2.query(`
+      DELETE FROM REFERENCIAPAGO
+      WHERE PRESUPUESTO IN (
+        SELECT PRESUPUESTO
+        FROM ARCHIVOPRESUPUESTO
+        WHERE ESTADO = 'RECHAZADO'
+      )
+    `);
+
+    const req3 = new sql.Request(transaction);
+
+    const deleteArchivos = await req3.query(`
+      DELETE FROM ARCHIVOPRESUPUESTO
+      WHERE ESTADO = 'RECHAZADO'
+    `);
+
+    await transaction.commit();
+
+    return res.json({
+      ok: true,
+      eliminados: deleteArchivos.rowsAffected[0],
+      msg: `${deleteArchivos.rowsAffected[0]} presupuestos eliminados`,
+    });
+  } catch (err) {
+    if (transaction) await transaction.rollback();
+
+    console.error("Error borrando rechazados:", err);
+
+    return res.status(500).json({
+      error: "Error interno",
+    });
   }
 };
