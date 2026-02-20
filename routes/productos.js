@@ -15,13 +15,13 @@ router.get("/", obtenerTodosLosProductos);
 
 // CRUD
 router.post("/", crearProducto);
+
+router.put("/actualizar-precios", actualizarPreciosMasivo);
 router.put("/:id", actualizarProducto);
 router.delete("/:id", eliminarProducto);
 router.get("/excel", exportarProductosExcel);
 
 // stock puntual
 router.post("/update-stock", actualizarStock);
-
-router.put("/actualizar-precios", actualizarPreciosMasivo);
 
 module.exports = router;

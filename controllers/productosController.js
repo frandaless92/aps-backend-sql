@@ -377,7 +377,7 @@ exports.actualizarPreciosMasivo = async (req, res) => {
     // =============================
     await pool.request().input("porcentaje", p).query(`
         UPDATE ACCESORIOS
-        SET precio_lista = precio + (precio * (@porcentaje / 100.0))
+        SET precio_lista = CEILING(precio * (1 + (@porcentaje / 100.0)))
       `);
 
     // =============================
@@ -385,7 +385,7 @@ exports.actualizarPreciosMasivo = async (req, res) => {
     // =============================
     await pool.request().input("porcentaje", p).query(`
         UPDATE TEJIDOS
-        SET precio_lista = precio + (precio * (@porcentaje / 100.0))
+        SET precio_lista = CEILING(precio * (1 + (@porcentaje / 100.0)))
       `);
 
     res.json({
