@@ -876,7 +876,20 @@ export function renderManageBudgets(container) {
         return;
       }
 
-      if (valor.includes("maps.app.goo.gl")) {
+      // Caso ?q=lat,lng directo
+      match = valor.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+      if (match) {
+        coordsLink = {
+          lat: parseFloat(match[1]),
+          lng: parseFloat(match[2]),
+        };
+        linkInput.classList.add("is-valid");
+        actualizarMapaPrioritario();
+        validarFormulario();
+        return;
+      }
+
+      if (valor.includes("google.com") || valor.includes("goo.gl")) {
         const resp = await fetch("/api/presupuestos/expandir-maps", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

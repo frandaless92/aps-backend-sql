@@ -5,16 +5,13 @@ exports.expandirMaps = async (req, res) => {
     const { url } = req.body;
     if (!url) return res.json({ ok: false });
 
-    const response = await axios.get(url, {
-      maxRedirects: 5,
-      validateStatus: () => true,
-    });
+    let match;
 
-    const finalUrl =
-      response.request?.res?.responseUrl || response.config?.url || url;
-    // 1️⃣ Formato @lat,lng
-    let match = finalUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    console.log("URL RECIBIDA:", url);
+    console.log("URL TYPE:", typeof url);
 
+    // 0️⃣ Caso directo ?q=lat,lng
+    match = url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
     if (match) {
       return res.json({
         ok: true,
@@ -23,9 +20,27 @@ exports.expandirMaps = async (req, res) => {
       });
     }
 
-    // 2️⃣ Formato /search/lat,+lng
-    match = finalUrl.match(/search\/(-?\d+\.\d+),\+?(-?\d+\.\d+)/);
+    // Solo si no matcheó, intentamos expandir
+    const response = await axios.get(url, {
+      maxRedirects: 5,
+      validateStatus: () => true,
+    });
 
+    const finalUrl =
+      response.request?.res?.responseUrl || response.config?.url || url;
+
+    // 1️⃣ @lat,lng
+    match = finalUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (match) {
+      return res.json({
+        ok: true,
+        lat: parseFloat(match[1]),
+        lng: parseFloat(match[2]),
+      });
+    }
+
+    // 2️⃣ /search/lat,lng
+    match = finalUrl.match(/search\/(-?\d+\.\d+),\+?(-?\d+\.\d+)/);
     if (match) {
       return res.json({
         ok: true,
