@@ -128,6 +128,7 @@ exports.cambiarEstado = async (req, res) => {
     // 🔵 CUANDO PASA A PREPARAR
     if (nuevoEstado === "PREPARAR") {
       const payloadEntrega = {
+        ...datosPrevios,
         tipoEntrega: tipoEntrega || null,
         fechaEntrega: fechaEntrega || null,
         horaEntrega: horaEntrega || null,
@@ -480,6 +481,9 @@ exports.generarPresupuesto = async (req, res) => {
 
     const nombreArchivo = `PRESUPUESTO-${presupuestoNumero}`;
 
+    const datosAdicionales = JSON.stringify({
+      total: total,
+    });
     // 4.1 Guardar PDF en ARCHIVOPRESUPUESTO
     const req1 = new sql.Request(transaction);
     req1.input("PRESUPUESTO", sql.NVarChar, presupuestoNumero);
@@ -487,11 +491,12 @@ exports.generarPresupuesto = async (req, res) => {
     req1.input("FORMATO", sql.NVarChar, ".pdf");
     req1.input("ARCHIVO", sql.VarBinary(sql.MAX), pdfBuffer);
     req1.input("ESTADO", sql.NVarChar, "A CONFIRMAR");
+    req1.input("DATOS_ADICIONALES", sql.NVarChar(sql.MAX), datosAdicionales);
 
     await req1.query(`
       INSERT INTO ARCHIVOPRESUPUESTO
-      (PRESUPUESTO, NOMBRE_DE_ARCHIVO, FORMATO, ARCHIVO, ESTADO)
-      VALUES (@PRESUPUESTO, @NOMBRE, @FORMATO, @ARCHIVO, @ESTADO)
+      (PRESUPUESTO, NOMBRE_DE_ARCHIVO, FORMATO, ARCHIVO, ESTADO, DATOS_ADICIONALES)
+      VALUES (@PRESUPUESTO, @NOMBRE, @FORMATO, @ARCHIVO, @ESTADO, @DATOS_ADICIONALES)
     `);
 
     // 4.1.b Guardar referencia de pago

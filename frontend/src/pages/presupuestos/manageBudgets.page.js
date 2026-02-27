@@ -403,7 +403,7 @@ export function renderManageBudgets(container) {
             : "";
         const columnaMonto =
           estadoActual === "ENTREGADO"
-            ? `<td>$${p.DATOS_ADICIONALES?.montoTotal || "-"}</td>`
+            ? `<td>$${p.DATOS_ADICIONALES?.total || "-"}</td>`
             : "";
         const columnaFecha =
           estadoActual === "ENTREGADO"
@@ -478,11 +478,11 @@ export function renderManageBudgets(container) {
       </button>
 
       <button class="btn btn-outline-danger"
-              data-action="RECHAZADO"
-              title="Rechazar">
-        <i class="bi bi-x-circle"></i>
+              data-action="ELIMINAR"
+              title="Eliminar">
+        <i class="bi bi-trash"></i>
       </button>
-    `;
+      `;
       }
 
       if (p.ESTADO === "PREPARAR") {
