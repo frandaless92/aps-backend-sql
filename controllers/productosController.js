@@ -131,13 +131,24 @@ exports.crearProducto = async (req, res) => {
     } = req.body;
     const pool = await poolPromise;
 
+    // 🔵 Obtener porcentaje actual
+    const porcentajeResult = await pool.request().query(`
+      SELECT PORCENTAJE FROM VARIABLES
+    `);
+
+    const porcentaje = Number(porcentajeResult.recordset[0]?.PORCENTAJE || 0);
+
+    const precioListaCalculado = Math.ceil(
+      Number(precio) * (1 + porcentaje / 100),
+    );
+
     if (tipo === "ACCESORIOS") {
       await pool
         .request()
         .input("descripcion", descripcion)
         .input("stock", stock)
         .input("precio", precio)
-        .input("precio_lista", precio_lista).query(`
+        .input("precio_lista", precioListaCalculado).query(`
           INSERT INTO ACCESORIOS (descripcion, stock, precio, precio_lista)
           VALUES (@descripcion, @stock, @precio, @precio_lista)
         `);
@@ -153,7 +164,7 @@ exports.crearProducto = async (req, res) => {
         .input("long", longitud)
         .input("stock", stock)
         .input("precio", precio)
-        .input("precio_lista", precio_lista).query(`
+        .input("precio_lista", precioListaCalculado).query(`
           INSERT INTO TEJIDOS (descripcion, cal, pul, alt, long, stock, precio, precio_lista)
           VALUES (@descripcion, @cal, @pul, @alt, @long, @stock, @precio, @precio_lista)
         `);
@@ -182,6 +193,17 @@ exports.actualizarProducto = async (req, res) => {
     } = req.body;
     const pool = await poolPromise;
 
+    // 🔵 Obtener porcentaje actual
+    const porcentajeResult = await pool.request().query(`
+      SELECT PORCENTAJE FROM VARIABLES
+    `);
+
+    const porcentaje = Number(porcentajeResult.recordset[0]?.PORCENTAJE || 0);
+
+    const precioListaCalculado = Math.ceil(
+      Number(precio) * (1 + porcentaje / 100),
+    );
+
     if (tipo === "ACCESORIOS") {
       await pool
         .request()
@@ -189,7 +211,7 @@ exports.actualizarProducto = async (req, res) => {
         .input("descripcion", descripcion)
         .input("stock", stock)
         .input("precio", precio)
-        .input("precio_lista", precio_lista).query(`
+        .input("precio_lista", precioListaCalculado).query(`
           UPDATE ACCESORIOS
           SET descripcion=@descripcion, stock=@stock, precio=@precio, precio_lista=@precio_lista
           WHERE id_producto=@id
@@ -207,7 +229,7 @@ exports.actualizarProducto = async (req, res) => {
         .input("long", longitud)
         .input("stock", stock)
         .input("precio", precio)
-        .input("precio_lista", precio_lista).query(`
+        .input("precio_lista", precioListaCalculado).query(`
           UPDATE TEJIDOS
           SET descripcion=@descripcion, cal=@cal, pul=@pul, alt=@alt, long=@long,
               stock=@stock, precio=@precio, precio_lista=@precio_lista
@@ -387,6 +409,11 @@ exports.actualizarPreciosMasivo = async (req, res) => {
         UPDATE TEJIDOS
         SET precio_lista = CEILING(precio * (1 + (@porcentaje / 100.0)))
       `);
+
+    await pool.request().input("porcentaje", p).query(`
+      UPDATE VARIABLES
+      SET PORCENTAJE = @porcentaje
+    `);
 
     res.json({
       message: "Precios actualizados correctamente",

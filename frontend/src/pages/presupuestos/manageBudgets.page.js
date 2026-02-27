@@ -126,9 +126,19 @@ export function renderManageBudgets(container) {
                   <input type="date" id="fechaEntrega" class="form-control">
                 </div>
 
-                <div class="col-md-6">
+                <!-- HORA SIMPLE (ENVIO) -->
+                <div class="col-md-6" id="bloqueHoraSimple">
                   <label class="form-label">Hora</label>
                   <input type="time" id="horaEntrega" class="form-control">
+                </div>
+
+                <!-- FRANJA HORARIA (RETIRA) -->
+                <div class="col-md-6 d-none" id="bloqueHoraFranja">
+                  <label class="form-label">Desde</label>
+                  <input type="time" id="horaDesde" class="form-control mb-2">
+
+                  <label class="form-label">Hasta</label>
+                  <input type="time" id="horaHasta" class="form-control">
                 </div>
 
                 <!-- DATOS ADICIONALES -->
@@ -262,6 +272,17 @@ export function renderManageBudgets(container) {
     );
 
     tipoSelect.addEventListener("change", () => {
+      const bloqueHoraSimple = container.querySelector("#bloqueHoraSimple");
+      const bloqueHoraFranja = container.querySelector("#bloqueHoraFranja");
+
+      if (tipoSelect.value === "ENVIO") {
+        bloqueHoraSimple.classList.remove("d-none");
+        bloqueHoraFranja.classList.add("d-none");
+      } else {
+        bloqueHoraSimple.classList.add("d-none");
+        bloqueHoraFranja.classList.remove("d-none");
+      }
+
       if (tipoSelect.value === "ENVIO") {
         bloqueEnvio.classList.remove("d-none");
 
@@ -286,6 +307,12 @@ export function renderManageBudgets(container) {
     horaInput.addEventListener("input", () => {
       validarFormulario();
     });
+
+    const horaDesdeInput = container.querySelector("#horaDesde");
+    const horaHastaInput = container.querySelector("#horaHasta");
+
+    horaDesdeInput?.addEventListener("input", validarFormulario);
+    horaHastaInput?.addEventListener("input", validarFormulario);
 
     let prepararModal = new bootstrap.Modal(
       container.querySelector("#prepararModal"),
@@ -360,9 +387,18 @@ export function renderManageBudgets(container) {
       </tr>
     `;
       }
-      const filtrados = presupuestos.filter(
+      let filtrados = presupuestos.filter(
         (p) => normalizarEstadoUI(p.ESTADO) === estadoActual,
       );
+
+      if (estadoActual === "ENTREGADO") {
+        filtrados.sort((a, b) => {
+          if (!a.FECHA_ENTREGA) return 1;
+          if (!b.FECHA_ENTREGA) return -1;
+
+          return new Date(b.FECHA_ENTREGA) - new Date(a.FECHA_ENTREGA);
+        });
+      }
 
       totalCount.textContent = `${filtrados.length} resultados`;
 
@@ -401,10 +437,20 @@ export function renderManageBudgets(container) {
           estadoActual === "ENTREGADO"
             ? `<td>${p.DATOS_ADICIONALES?.metodoPago || "-"}</td>`
             : "";
+
+        const formatearMoneda = (num) => {
+          if (!num && num !== 0) return "-";
+          return Number(num).toLocaleString("es-AR", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          });
+        };
+
         const columnaMonto =
           estadoActual === "ENTREGADO"
-            ? `<td>$${p.DATOS_ADICIONALES?.total || "-"}</td>`
+            ? `<td>$${formatearMoneda(p.DATOS_ADICIONALES?.total)}</td>`
             : "";
+
         const columnaFecha =
           estadoActual === "ENTREGADO"
             ? `<td>${
@@ -525,10 +571,7 @@ export function renderManageBudgets(container) {
     }
 
     async function cambiarEstado(p, accion) {
-      console.log("Acción:", accion);
-
       if (accion?.trim().toUpperCase() === "PREPARAR") {
-        console.log("Abriendo modal...");
         abrirModalPreparar(p);
         return;
       }
@@ -755,6 +798,8 @@ export function renderManageBudgets(container) {
 
       prepararModal.show();
 
+      tipoSelect.dispatchEvent(new Event("change"));
+
       setTimeout(() => {
         if (!map) {
           map = L.map("mapPreview").setView([-34.6037, -58.3816], 13);
@@ -774,13 +819,20 @@ export function renderManageBudgets(container) {
         async function () {
           const tipo = container.querySelector("#tipoEntrega").value;
           const fechaEntrega = container.querySelector("#fechaEntrega").value;
-          const horaEntrega = container.querySelector("#horaEntrega").value;
           const direccion = container.querySelector("#direccionEntrega").value;
           const linkMaps = container.querySelector("#linkMaps").value;
           const datosAdicionales =
             container.querySelector("#datosAdicionales").value;
-          console.log("FECHA:", fechaEntrega);
-          console.log("HORA:", horaEntrega);
+
+          let horaEntrega;
+
+          if (tipo === "ENVIO") {
+            horaEntrega = container.querySelector("#horaEntrega").value;
+          } else {
+            const desde = container.querySelector("#horaDesde").value;
+            const hasta = container.querySelector("#horaHasta").value;
+            horaEntrega = `${desde} a ${hasta}`;
+          }
 
           const resp = await fetch("/api/presupuestos/gestion/cambiar-estado", {
             method: "POST",
@@ -954,10 +1006,18 @@ export function renderManageBudgets(container) {
 
     function validarFormulario() {
       const fecha = container.querySelector("#fechaEntrega").value;
-      const hora = container.querySelector("#horaEntrega").value;
       const tipo = container.querySelector("#tipoEntrega").value;
+      const horaSimple = container.querySelector("#horaEntrega").value;
+      const horaDesde = container.querySelector("#horaDesde")?.value;
+      const horaHasta = container.querySelector("#horaHasta")?.value;
 
-      let habilitar = fecha && hora;
+      let habilitar = fecha;
+
+      if (tipo === "ENVIO") {
+        habilitar = habilitar && horaSimple;
+      } else {
+        habilitar = habilitar && horaDesde && horaHasta;
+      }
 
       if (tipo === "ENVIO") {
         habilitar = habilitar && (coordsLink || coordsDireccion);
