@@ -275,10 +275,12 @@ export function renderManageBudgets(container) {
       const bloqueHoraSimple = container.querySelector("#bloqueHoraSimple");
       const bloqueHoraFranja = container.querySelector("#bloqueHoraFranja");
 
-      if (tipoSelect.value === "ENVIO") {
+      if (tipoSelect.value === "ENTREGA") {
+        // 🏪 Retiro → hora simple
         bloqueHoraSimple.classList.remove("d-none");
         bloqueHoraFranja.classList.add("d-none");
       } else {
+        // 🚚 Envío → desde / hasta
         bloqueHoraSimple.classList.add("d-none");
         bloqueHoraFranja.classList.remove("d-none");
       }
@@ -448,7 +450,7 @@ export function renderManageBudgets(container) {
 
         const columnaMonto =
           estadoActual === "ENTREGADO"
-            ? `<td>$${formatearMoneda(p.DATOS_ADICIONALES?.total)}</td>`
+            ? `<td>$ ${formatearMoneda(p.DATOS_ADICIONALES?.total)}</td>`
             : "";
 
         const columnaFecha =
@@ -826,9 +828,11 @@ export function renderManageBudgets(container) {
 
           let horaEntrega;
 
-          if (tipo === "ENVIO") {
+          if (tipo === "ENTREGA") {
+            // 🏪 Retiro → una sola hora
             horaEntrega = container.querySelector("#horaEntrega").value;
           } else {
+            // 🚚 Envío → franja horaria
             const desde = container.querySelector("#horaDesde").value;
             const hasta = container.querySelector("#horaHasta").value;
             horaEntrega = `${desde} a ${hasta}`;
@@ -1013,9 +1017,11 @@ export function renderManageBudgets(container) {
 
       let habilitar = fecha;
 
-      if (tipo === "ENVIO") {
+      if (tipo === "ENTREGA") {
+        // 🏪 Retiro → solo una hora
         habilitar = habilitar && horaSimple;
       } else {
+        // 🚚 Envío → requiere desde y hasta
         habilitar = habilitar && horaDesde && horaHasta;
       }
 
