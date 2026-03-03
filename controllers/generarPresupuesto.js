@@ -1,5 +1,8 @@
 // controllers/generarPresupuesto.js
 const generarPDF = require("../utils/pdfGenerator");
+const { enviarPresupuestoEmail } = require("../services/emailService");
+const fs = require("fs");
+const path = require("path");
 const { poolPromise, sql } = require("../config/db");
 
 exports.eliminarPresupuesto = async (req, res) => {
@@ -251,6 +254,92 @@ exports.cambiarEstado = async (req, res) => {
     // 6️⃣ COMMIT
     // =====================================
     await transaction.commit();
+
+    // =====================================
+    // 7️⃣ ENVIAR MAIL SI CONFIRMADO
+    // =====================================
+    if (nuevoEstado === "CONFIRMADO") {
+      try {
+        const reqMail = new sql.Request(pool);
+
+        // 🔹 Obtener presupuesto + PDF
+        const presupuestoData = await reqMail.input(
+          "PRESUPUESTO",
+          sql.NVarChar,
+          presupuesto,
+        ).query(`
+        SELECT PRESUPUESTO, ARCHIVO, DATOS_ADICIONALES
+        FROM ARCHIVOPRESUPUESTO
+        WHERE PRESUPUESTO = @PRESUPUESTO
+      `);
+
+        if (presupuestoData.recordset.length === 0) {
+          console.warn("No se encontró presupuesto para enviar mail");
+        } else {
+          const data = presupuestoData.recordset[0];
+
+          const pdfBuffer = data.ARCHIVO;
+
+          let datosParsed = {};
+          if (data.DATOS_ADICIONALES) {
+            try {
+              datosParsed = JSON.parse(data.DATOS_ADICIONALES);
+            } catch {}
+          }
+
+          // 🔹 Obtener productos con descripción real
+          const productosDB = await pool
+            .request()
+            .input("PRESUPUESTO", sql.NVarChar, presupuesto).query(`
+              SELECT 
+                cs.TIPO,
+                cs.ID_PRODUCTO,
+                cs.CANTIDAD,
+
+                CASE 
+                  WHEN cs.TIPO = 'ACCESORIOS' THEN a.descripcion
+                  WHEN cs.TIPO = 'TEJIDOS' 
+                    THEN t.descripcion + ' ' + t.cal + ' ' + t.pul + ' ' + t.alt + ' ' + t.long
+                END AS descripcion
+
+              FROM CONTROLSTOCK cs
+
+              LEFT JOIN ACCESORIOS a
+                ON cs.TIPO = 'ACCESORIOS'
+                AND TRY_CAST(cs.ID_PRODUCTO AS INT) = a.id_producto
+
+              LEFT JOIN TEJIDOS t
+                ON cs.TIPO = 'TEJIDOS'
+                AND TRY_CAST(cs.ID_PRODUCTO AS INT) = t.id_producto
+
+              WHERE cs.PRESUPUESTO = @PRESUPUESTO
+            `);
+
+          const productosMail = productosDB.recordset.map((p) => ({
+            nombre: p.descripcion || p.ID_PRODUCTO,
+            cantidad: p.CANTIDAD,
+            precio: "-",
+            subtotal: "-",
+          }));
+
+          await enviarPresupuestoEmail({
+            presupuesto,
+            cliente: {}, // si luego querés guardarlo en BD lo agregamos
+            total: datosParsed.total || 0,
+            productos: productosMail,
+            metodoPago,
+            tipoEntrega: datosParsed.tipoEntrega || "",
+            fechaEntrega: new Date(),
+            direccion: datosParsed.direccion || "",
+            linkMaps: datosParsed.linkMaps || "",
+            datosAdicionales: datosParsed.datosAdicionales || "",
+            pdfBuffer,
+          });
+        }
+      } catch (mailError) {
+        console.error("Error enviando mail:", mailError);
+      }
+    }
 
     return res.json({
       ok: true,
