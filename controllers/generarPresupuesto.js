@@ -1,6 +1,9 @@
 // controllers/generarPresupuesto.js
 const generarPDF = require("../utils/pdfGenerator");
-const { enviarPresupuestoEmail } = require("../services/emailService");
+const {
+  enviarPresupuestoEmailEntregado,
+  enviarPresupuestoEmailAconfirmar,
+} = require("../services/emailService");
 const fs = require("fs");
 const path = require("path");
 const { poolPromise, sql } = require("../config/db");
@@ -322,7 +325,7 @@ exports.cambiarEstado = async (req, res) => {
             subtotal: "-",
           }));
 
-          await enviarPresupuestoEmail({
+          await enviarPresupuestoEmailEntregado({
             presupuesto,
             cliente: {}, // si luego querés guardarlo en BD lo agregamos
             total: datosParsed.total || 0,
@@ -619,7 +622,30 @@ exports.generarPresupuesto = async (req, res) => {
     await transaction.commit();
 
     // ======================================================
-    // 5) RESPUESTA — DEVOLVER EL PDF COMO SIEMPRE
+    // 5) ENVIAR MAIL A CONFIRMAR
+    // ======================================================
+    try {
+      await enviarPresupuestoEmailAconfirmar({
+        presupuesto: presupuestoNumero,
+        cliente,
+        total: formatoPrecio(Number(total || 0)),
+        productos: items.map((item) => ({
+          nombre: item.nombre || item.descripcion,
+          cantidad: item.cantidad,
+          precio: formatoPrecio(Number(item.precio || 0)),
+          subtotal: formatoPrecio(Number(item.subtotal || 0)),
+        })),
+        pdfBuffer,
+      });
+    } catch (mailError) {
+      console.error(
+        "⚠️ Presupuesto generado pero falló el envío del mail:",
+        mailError,
+      );
+    }
+
+    // ======================================================
+    // 6) RESPUESTA — DEVOLVER EL PDF COMO SIEMPRE
     // ======================================================
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(

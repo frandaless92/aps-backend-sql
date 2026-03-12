@@ -9,7 +9,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-async function enviarPresupuestoEmail({
+async function enviarPresupuestoEmailEntregado({
   presupuesto,
   cliente,
   total,
@@ -83,4 +83,67 @@ async function enviarPresupuestoEmail({
   });
 }
 
-module.exports = { enviarPresupuestoEmail };
+async function enviarPresupuestoEmailAconfirmar({
+  presupuesto,
+  cliente,
+  total,
+  productos,
+  pdfBuffer,
+}) {
+  const productosHtml = productos
+    .map(
+      (p) => `
+      <tr>
+        <td>${p.nombre}</td>
+        <td>${p.cantidad}</td>
+        <td>$${p.precio}</td>
+        <td>$${p.subtotal}</td>
+      </tr>
+    `,
+    )
+    .join("");
+
+  const html = `
+    <h2>Presupuesto ${presupuesto} - A CONFIRMAR</h2>
+    <p><strong>Cliente:</strong> ${cliente?.apellido || ""} ${
+      cliente?.nombre || ""
+    }</p>
+    
+    <h3>Productos</h3>
+    <table border="1" cellpadding="6" cellspacing="0">
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th>Cantidad</th>
+          <th>Precio</th>
+          <th>Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${productosHtml}
+      </tbody>
+    </table>
+
+    <h2>Total: $${total}</h2>
+  `;
+
+  await transporter.sendMail({
+    from: `"APS Sistema" <${process.env.MAIL_USER}>`,
+    to: process.env.MAIL_TO,
+    subject: `Presupuesto ${presupuesto} - A CONFIRMAR`,
+    html,
+    attachments: pdfBuffer
+      ? [
+          {
+            filename: `Presupuesto_${presupuesto}.pdf`,
+            content: pdfBuffer,
+          },
+        ]
+      : [],
+  });
+}
+
+module.exports = {
+  enviarPresupuestoEmailEntregado,
+  enviarPresupuestoEmailAconfirmar,
+};
